@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = "io.github.dangquanghuy277.mindfulhub"
         minSdk = 31
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -26,7 +26,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":data"))
+    implementation(project(":gate"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

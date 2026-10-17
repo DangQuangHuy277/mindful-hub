@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "mindful-hub"
-include(":core", ":data", ":app")
+include(":core", ":data", ":gate", ":app")

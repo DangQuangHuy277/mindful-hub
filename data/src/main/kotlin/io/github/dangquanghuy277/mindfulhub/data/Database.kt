@@ -1,6 +1,7 @@
 package io.github.dangquanghuy277.mindfulhub.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -45,9 +46,74 @@ interface AppEventDao {
     suspend fun earliestTs(source: String = "usage"): Long?
 }
 
-@Database(entities = [AppEventEntity::class], version = 1)
+/** Every gate decision and what the user did with it (G1, F05). `outcome` is filled in later. */
+@Entity(tableName = "gate_event", indices = [Index("ts"), Index("pkg")])
+data class GateEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val ts: Long,
+    val pkg: String,
+    val screen: String,
+    /** ALLOW / PROMPT / BLOCK */
+    val decision: String,
+    val delayMs: Long,
+    /** PROCEEDED / ABANDONED / BLOCKED, or null while the prompt is still open. */
+    val outcome: String? = null,
+    val logicalDay: String,
+)
+
+/** A session opened through the gate (G1, G3, G4). */
+@Entity(tableName = "session", indices = [Index("start")])
+data class SessionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val pkg: String,
+    val purpose: String,
+    val timeBoxMin: Int,
+    val start: Long,
+    val plannedEnd: Long,
+    val end: Long? = null,
+    /** TIMEBOX / USER / SCREEN_OFF */
+    val endedBy: String? = null,
+    /** 1 = 👍, 0 = 😐, -1 = 👎 */
+    val rating: Int? = null,
+)
+
+@Dao
+interface GateDao {
+    @Insert
+    suspend fun insertEvent(e: GateEventEntity): Long
+
+    @Query("UPDATE gate_event SET outcome = :outcome WHERE id = :id")
+    suspend fun setOutcome(id: Long, outcome: String)
+
+    @Query("SELECT COUNT(*) FROM gate_event WHERE pkg = :pkg AND logicalDay = :day AND decision = 'PROMPT'")
+    suspend fun promptsOn(pkg: String, day: String): Int
+
+    @Query("SELECT COUNT(*) FROM gate_event WHERE ts >= :from AND ts < :to")
+    suspend fun countBetween(from: Long, to: Long): Int
+
+    @Query("SELECT decision, outcome, COUNT(*) AS n FROM gate_event WHERE logicalDay = :day GROUP BY decision, outcome")
+    suspend fun summary(day: String): List<GateSummaryRow>
+
+    @Insert
+    suspend fun insertSession(s: SessionEntity): Long
+
+    @Query("UPDATE session SET `end` = :end, endedBy = :endedBy WHERE id = :id AND `end` IS NULL")
+    suspend fun endSession(id: Long, end: Long, endedBy: String)
+
+    @Query("UPDATE session SET rating = :rating WHERE id = :id")
+    suspend fun rate(id: Long, rating: Int)
+}
+
+data class GateSummaryRow(val decision: String, val outcome: String?, val n: Int)
+
+@Database(
+    entities = [AppEventEntity::class, GateEventEntity::class, SessionEntity::class],
+    version = 2,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
 abstract class MindfulDatabase : RoomDatabase() {
     abstract fun appEvents(): AppEventDao
+    abstract fun gate(): GateDao
 
     companion object {
         fun create(context: Context): MindfulDatabase =

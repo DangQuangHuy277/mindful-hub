@@ -9,6 +9,7 @@ import io.github.dangquanghuy277.mindfulhub.core.AppSession
 import io.github.dangquanghuy277.mindfulhub.core.Heatmap
 import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
 import io.github.dangquanghuy277.mindfulhub.core.UsageAnalytics
+import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +22,12 @@ import java.time.LocalDate
 
 data class AppRow(val pkg: String, val label: String, val minutesPerDay: Double, val opensPerDay: Double)
 
+/** Today's gate outcomes. "Abandoned" opens are the wins (G1). */
+data class GateToday(val prompts: Int = 0, val abandoned: Int = 0, val proceeded: Int = 0, val blocked: Int = 0)
+
 data class UsageUiState(
+    val gateEnabled: Boolean = false,
+    val gateToday: GateToday = GateToday(),
     val hasPermission: Boolean = true,
     val loading: Boolean = false,
     val historySince: Instant? = null,
@@ -41,6 +47,15 @@ class UsageViewModel(private val app: Application, private val c: AppContainer) 
 
     fun refresh() {
         viewModelScope.launch {
+            val summary = c.gateDao.summary(c.clock.dayOf(Instant.now()).toString())
+            fun count(decision: String, outcome: String? = null) =
+                summary.filter { it.decision == decision && (outcome == null || it.outcome == outcome) }.sumOf { it.n }
+            _state.update {
+                it.copy(
+                    gateEnabled = GateStatus.isEnabled(app),
+                    gateToday = GateToday(count("PROMPT"), count("PROMPT", "ABANDONED"), count("PROMPT", "PROCEEDED"), count("BLOCK")),
+                )
+            }
             if (!c.importer.hasPermission()) {
                 _state.update { it.copy(hasPermission = false) }
                 return@launch

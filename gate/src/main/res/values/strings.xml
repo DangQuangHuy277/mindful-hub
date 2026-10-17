@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gate_label">Mindful Hub gate</string>
+    <string name="gate_description">Pauses Facebook, Instagram, Threads, X, YouTube and games when you open them and asks what you came for. It only checks which app is in front; it never stores what is on your screen.</string>
+</resources>

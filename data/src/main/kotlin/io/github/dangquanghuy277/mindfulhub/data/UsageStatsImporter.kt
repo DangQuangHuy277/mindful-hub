@@ -65,4 +65,11 @@ class UsageRepository(private val dao: AppEventDao) {
 
     /** How far back our own copy of the history goes (spike item 3 in ARCHITECTURE.md). */
     suspend fun historySince(): Instant? = dao.earliestTs()?.let(Instant::ofEpochMilli)
+
+    /** Packages that were in the foreground in [from, to), per the system's own record. */
+    suspend fun foregroundPackages(from: Instant, to: Instant): Set<String> =
+        dao.between(from.toEpochMilli(), to.toEpochMilli())
+            .filter { it.type == UsageEventType.FOREGROUND.name }
+            .map { it.pkg }
+            .toSet()
 }
