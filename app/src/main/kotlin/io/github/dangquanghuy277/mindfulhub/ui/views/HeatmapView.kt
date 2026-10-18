@@ -1,9 +1,10 @@
 package io.github.dangquanghuy277.mindfulhub.ui.views
 
+import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
+import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +58,7 @@ object HeatmapView : UsageView {
 private fun HeatmapCard(map: Heatmap) {
     var picked by remember(map) { mutableStateOf<Triple<LocalDate, Int, Double>?>(null) }
     val dayFmt = rememberFormatter("EEE d")
-    Card {
+    SoftCard {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Minutes per hour", style = MaterialTheme.typography.titleSmall)
             UsageHeatmap(map, Modifier.fillMaxWidth()) { d, h, m -> picked = Triple(d, h, m) }
@@ -76,7 +76,7 @@ private fun HeatmapCard(map: Heatmap) {
 /** Rows = logical days (oldest on top), columns = clock hours starting at 04:00. */
 @Composable
 private fun UsageHeatmap(map: Heatmap, modifier: Modifier = Modifier, onTap: (LocalDate, Int, Double) -> Unit) {
-    val steps = HeatmapPalette.steps(isSystemInDarkTheme())
+    val steps = HeatmapPalette.steps(isDarkTheme())
     val dayFmt = rememberFormatter("EEE d")
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -126,7 +126,7 @@ private fun UsageHeatmap(map: Heatmap, modifier: Modifier = Modifier, onTap: (Lo
 
 @Composable
 private fun Legend() {
-    val steps = HeatmapPalette.steps(isSystemInDarkTheme())
+    val steps = HeatmapPalette.steps(isDarkTheme())
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         HeatmapPalette.bucketLabels.forEachIndexed { i, label ->
             Row(verticalAlignment = Alignment.CenterVertically) {

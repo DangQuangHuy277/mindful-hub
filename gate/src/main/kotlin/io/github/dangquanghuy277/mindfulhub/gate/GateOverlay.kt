@@ -6,10 +6,6 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -20,6 +16,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import io.github.dangquanghuy277.mindfulhub.theme.MindfulTheme
 
 /**
  * A full-screen window drawn by the accessibility service on top of the target app.
@@ -40,9 +37,7 @@ class GateOverlay(private val service: AccessibilityService) {
         val o = OverlayOwner().also { it.start() }
         val compose = ComposeView(service).apply {
             setContent {
-                MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
-                    content()
-                }
+                MindfulTheme { content() }
             }
         }
         // Back on the overlay means "never mind", not "go back into the app underneath".

@@ -1,10 +1,10 @@
 package io.github.dangquanghuy277.mindfulhub.ui.views
 
+import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -37,6 +37,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dangquanghuy277.mindfulhub.ui.HeatmapPalette
@@ -48,7 +49,7 @@ import io.github.dangquanghuy277.mindfulhub.ui.HeatmapPalette
 data class ChartColors(val before: Color, val after: Color)
 
 @Composable
-fun chartColors(): ChartColors = HeatmapPalette.steps(isSystemInDarkTheme()).let { ChartColors(before = it[2], after = it[5]) }
+fun chartColors(): ChartColors = HeatmapPalette.steps(isDarkTheme()).let { ChartColors(before = it[2], after = it[5]) }
 
 /**
  * One bar per slot (a day or an hour), stacked by app: `values[slot][series]`, bottom series
@@ -70,13 +71,15 @@ fun StackedBarChart(
     maxBarWidth: Dp = 28.dp,
     ghost: List<Double>? = null,
     bandFrom: Float? = null,
+    /** Smaller for dense charts, where every bar carries a number. */
+    topLabelSize: TextUnit = 10.sp,
 ) {
     val ghostColor = MaterialTheme.colorScheme.outline
-    val gapColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val gapColor = MaterialTheme.colorScheme.surface
     val bandColor = MaterialTheme.colorScheme.surfaceVariant
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    val valueStyle = labelStyle.copy(color = MaterialTheme.colorScheme.onSurface)
+    val valueStyle = labelStyle.copy(color = MaterialTheme.colorScheme.onSurface, fontSize = topLabelSize)
     val max = maxOf(values.maxOfOrNull { it.sum() } ?: 0.0, ghost?.maxOrNull() ?: 0.0, 1.0)
 
     Canvas(
@@ -115,7 +118,7 @@ fun StackedBarChart(
                 drawRect(gapColor, Offset(left, y - h - gap), Size(barW, gap))
                 y -= h
             }
-            topLabel(i)?.let { centeredText(measurer, it, cx, bottom - total - 14.dp.toPx(), valueStyle) }
+            topLabel(i)?.let { centeredText(measurer, it, cx, bottom - total - topLabelSize.toPx() - 3.dp.toPx(), valueStyle) }
             xLabel(i)?.let { centeredText(measurer, it, cx, bottom + 4.dp.toPx(), labelStyle) }
         }
     }

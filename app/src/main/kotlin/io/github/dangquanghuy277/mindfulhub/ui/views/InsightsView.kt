@@ -1,12 +1,13 @@
 package io.github.dangquanghuy277.mindfulhub.ui.views
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
+import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
+import io.github.dangquanghuy277.mindfulhub.theme.CardTone
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.dangquanghuy277.mindfulhub.core.DayUse
 import io.github.dangquanghuy277.mindfulhub.core.Insight
 import io.github.dangquanghuy277.mindfulhub.core.InsightInput
@@ -45,7 +47,7 @@ object InsightsView : UsageView {
     override fun Content(data: UsageSnapshot) {
         val model = remember(data) { InsightsModel.of(data) }
         var isolated by remember(model) { mutableStateOf<Int?>(null) }
-        val colors = AppPalette.colorsFor(model.series, isSystemInDarkTheme())
+        val colors = AppPalette.colorsFor(model.series, isDarkTheme())
         val labels = model.series.map { if (it == AppPalette.OTHER) "Other" else data.label(it) }
         val onTap = { i: Int -> isolated = if (isolated == i) null else i }
         WeekCard(model, data, labels, colors, isolated, onTap)
@@ -104,9 +106,9 @@ private fun breakdown(row: List<Double>, labels: List<String>): String =
 
 @Composable
 private fun InsightsCard(insights: List<Insight>, data: UsageSnapshot) {
-    Card {
+    SoftCard(tone = CardTone.Lavender) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("This week", style = MaterialTheme.typography.titleMedium)
+            Text("✨ This week", style = MaterialTheme.typography.titleMedium)
             if (insights.isEmpty()) {
                 Text(
                     "Not enough data yet. Findings show up after a few days of use.",
@@ -174,7 +176,7 @@ private fun WeekCard(
     val bed = rememberFormatter("HH:mm").format(data.bedtime)
     val values = model.weekBySeries.only(isolated)
     val dayLabels = model.week.map { if (it.day == data.days.last()) "Today" else dayFmt.format(it.day) }
-    Card {
+    SoftCard {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Per day", style = MaterialTheme.typography.titleSmall)
             AppLegend(labels, colors, isolated, onTap)
@@ -211,25 +213,26 @@ private fun HourCard(
     ).toMinutes() / 60f
     val values = model.hourBySeries.only(isolated)
     val peak = values.indices.maxByOrNull { values[it].sum() }
-    Card {
+    SoftCard {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Average day, by hour", style = MaterialTheme.typography.titleSmall)
             AppLegend(labels, colors, isolated, onTap)
             StackedBarChart(
                 values, colors,
                 xLabel = { i -> if (i % 6 == 0) "%02d".format(model.hours[i]) else null },
-                topLabel = { i -> if (i == peak && values[i].sum() >= 1) formatMinutesShort(values[i].sum()) else null },
+                // Bare minutes: "30" fits a 1/24-width column where "30m" would collide.
+                topLabel = { i -> values[i].sum().roundToInt().takeIf { it >= 1 }?.toString() },
                 selected = picked, onSelect = { picked = if (picked == it) null else it },
                 description = "Average minutes per hour; the busiest hour starts at ${peak?.let { model.hours[it] } ?: "none"}:00",
                 modifier = Modifier.fillMaxWidth(), height = 150.dp, barFraction = 0.8f, maxBarWidth = 24.dp,
-                bandFrom = bedtimeAt,
+                bandFrom = bedtimeAt, topLabelSize = 9.sp,
             )
             Text(
                 picked?.let { i ->
                     val h = model.hours[i]
                     "%02d:00–%02d:00 · ${formatMinutes(values[i].sum())} a day on average. ".format(h, (h + 1) % 24) +
                         breakdown(values[i], labels) + "."
-                } ?: "Shaded: after your $bed bedtime. Tap an hour for details.",
+                } ?: "Numbers: minutes a day on average. Shaded: after your $bed bedtime. Tap an hour for details.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

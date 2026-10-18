@@ -336,3 +336,20 @@ details instead of by bar color.
 **Views are switchable.** Each view implements `UsageView` and is listed in `UsageViews.all`;
 the tab row shows whatever is registered. The heatmap stays as the second view. B (day timeline)
 and F (scoreboard, once budgets exist in F04) are candidates for later views.
+
+## D-019: Theme: peach and lavender on white
+2026-10-18. **Decided (your call).** You wanted the app cuter and brighter, with white as the main
+color, not gray. Option A of three mockups (peach and lavender, matcha, moonlight), made always
+light:
+- **White background and white chart cards** with a soft peach outline. The app colors in the
+  charts were tuned for white; on a peach card, yellow and gray drop to about 2:1.
+- **Pastel cards for text only:** peach for the gate, lavender for the findings.
+- **Readable accents.** The pastel peach is too faint for button text on white (2.9:1), so buttons
+  use a deeper terracotta (5.0:1). Muted text is 5.6:1.
+- **Softer shapes:** rounder cards (24 dp) and pill-shaped chips. A greeting that changes with the
+  hour says "It's late. Sleep well" after midnight.
+- **The gate overlay uses the same theme** (`theme/MindfulTheme.kt` in `:gate`), so pauses look
+  like the app.
+- **The phone's dark mode is ignored for now.** Charts read the theme, not the system
+  (`isDarkTheme()`), so adding a dark option later is a theme change only.
+- **No streaks or confetti:** an anti-doomscroll app shouldn't become an attention hook itself.

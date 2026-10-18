@@ -1,5 +1,9 @@
 package io.github.dangquanghuy277.mindfulhub.ui
 
+import java.time.LocalTime
+import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
+import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
+import io.github.dangquanghuy277.mindfulhub.theme.CardTone
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -7,23 +11,27 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -37,8 +45,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -61,8 +72,9 @@ fun UsageScreen(vm: UsageViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             NotificationPermission()
+            Text(greeting(LocalTime.now()), style = MaterialTheme.typography.headlineMedium)
             GateCard(state.gateEnabled, state.gateToday)
-            Text("Your phone, last 7 days", style = MaterialTheme.typography.headlineSmall)
+            Text("Your phone, last 7 days", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Days start at 04:00, so late-night use counts toward the day before.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -118,9 +130,9 @@ private fun NotificationPermission() {
 @Composable
 private fun GateCard(enabled: Boolean, today: GateToday) {
     val context = LocalContext.current
-    Card {
+    SoftCard(tone = CardTone.Peach) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(if (enabled) "Gate is on" else "Gate is off", style = MaterialTheme.typography.titleMedium)
+            Text(if (enabled) "🌿 Gate is on" else "Gate is off", style = MaterialTheme.typography.titleMedium)
             if (enabled) {
                 Text(
                     "Today: ${today.prompts} pauses · ${today.abandoned} closed (wins) · ${today.proceeded} went in · ${today.blocked} short videos blocked",
@@ -139,7 +151,7 @@ private fun GateCard(enabled: Boolean, today: GateToday) {
 @Composable
 private fun PermissionCard() {
     val context = LocalContext.current
-    Card {
+    SoftCard(tone = CardTone.Peach) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Usage access needed", style = MaterialTheme.typography.titleMedium)
             Text("Mindful Hub reads which app was on screen and when. Everything stays on this phone.")
@@ -162,29 +174,56 @@ private fun AppChips(apps: List<AppRow>, filter: AppFilter, onSelect: (AppFilter
     }
 }
 
-/** The table view of the same data: per-day averages over the 7 days. */
+/**
+ * Top apps as horizontal bars: minutes or opens per day, one measure at a time (never two scales
+ * on one chart). Gated apps keep their chart color; the rest are gray. Tapping a row filters to it.
+ */
 @Composable
 private fun AppTable(apps: List<AppRow>, filter: AppFilter, onSelect: (AppFilter) -> Unit) {
-    Card {
-        Column(Modifier.padding(12.dp)) {
-            Text("Average per day", style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(4.dp))
-            apps.forEach { a ->
+    var byOpens by rememberSaveable { mutableStateOf(false) }
+    val dark = isDarkTheme()
+    val value = { a: AppRow -> if (byOpens) a.opensPerDay else a.minutesPerDay }
+    val max = apps.maxOfOrNull(value)?.takeIf { it > 0 } ?: 1.0
+    SoftCard {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Average per day", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                FilterChip(selected = !byOpens, onClick = { byOpens = false }, label = { Text("Time") })
+                Spacer(Modifier.width(8.dp))
+                FilterChip(selected = byOpens, onClick = { byOpens = true }, label = { Text("Opens") })
+            }
+            apps.sortedByDescending(value).forEach { a ->
+                val selected = filter == AppFilter.One(a.pkg)
                 Row(
                     Modifier.fillMaxWidth().clickable { onSelect(AppFilter.One(a.pkg)) }.padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        a.label,
+                        a.label, Modifier.width(104.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (filter == AppFilter.One(a.pkg)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     )
+                    Box(Modifier.weight(1f).height(14.dp)) {
+                        Box(
+                            Modifier.fillMaxWidth((value(a) / max).toFloat().coerceAtLeast(0.01f)).fillMaxHeight()
+                                .background(AppPalette.fixedOrNeutral(a.pkg, dark), RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)),
+                        )
+                    }
                     Text(
-                        "${formatMinutes(a.minutesPerDay)} · ${"%.0f".format(a.opensPerDay)} opens",
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        if (byOpens) "%.0f".format(a.opensPerDay) else formatMinutes(a.minutesPerDay),
+                        Modifier.width(64.dp), textAlign = TextAlign.End,
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
     }
+}
+
+/** A friendly hello that also notices the hour: after midnight it nudges toward sleep (G7). */
+private fun greeting(now: LocalTime): String = when (now.hour) {
+    in 4..11 -> "Good morning ☀️"
+    in 12..17 -> "Good afternoon 🌤️"
+    in 18..23 -> "Good evening 🌙"
+    else -> "It's late. Sleep well 😴"
 }

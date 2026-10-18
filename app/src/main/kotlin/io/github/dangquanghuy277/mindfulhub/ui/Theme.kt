@@ -1,19 +1,6 @@
 package io.github.dangquanghuy277.mindfulhub.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-
-@Composable
-fun MindfulTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(),
-        content = content,
-    )
-}
 
 /**
  * Sequential one-hue (blue) ramp for minutes of use. Each mode has its own steps, checked with the
@@ -55,6 +42,10 @@ object AppPalette {
         "com.instagram.android" to 4,
         "com.hhgame.mlbbvn" to 6,
     )
+
+    /** The app's own color if it has a fixed slot (the gated apps), else the neutral "other" gray. */
+    fun fixedOrNeutral(pkg: String, darkMode: Boolean): Color =
+        fixed[pkg]?.let { (if (darkMode) dark else light)[it] } ?: if (darkMode) otherDark else otherLight
 
     /**
      * Colors for [keys] in order. Known apps keep their slot; others take never-fixed slots first,
