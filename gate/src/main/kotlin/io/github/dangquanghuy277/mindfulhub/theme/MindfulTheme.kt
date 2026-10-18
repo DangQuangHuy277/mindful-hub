@@ -17,24 +17,25 @@ import androidx.compose.ui.unit.dp
 private val Ink = Color(0xFF2E2430)
 
 /**
- * Peach and lavender on white (D-019). Always light: you asked for white as the main color.
- * Contrast is checked against white: primary 5.0:1, muted text 5.6:1, container text ≥10:1.
+ * Blue and lavender on white (D-019; blue replaced peach as the accent at your request).
+ * Always light: you asked for white as the main color. Contrast is checked against white:
+ * primary 5.6:1, muted text 5.6:1, container text ≥10:1.
  * It lives in `:gate` because the pause overlay uses it too, and `:app` depends on `:gate`.
  */
 private val Scheme = lightColorScheme(
-    primary = Color(0xFFB4513A), onPrimary = Color.White,
-    primaryContainer = Color(0xFFFFE3D8), onPrimaryContainer = Color(0xFF5C2416),
+    primary = Color(0xFF2766C2), onPrimary = Color.White,
+    primaryContainer = Color(0xFFE3F0FF), onPrimaryContainer = Color(0xFF0C2D57),
     secondary = Color(0xFF6E5DC6), onSecondary = Color.White,
     secondaryContainer = Color(0xFFEEEAFF), onSecondaryContainer = Color(0xFF2B2265),
     tertiary = Color(0xFF2E7D62), onTertiary = Color.White,
     tertiaryContainer = Color(0xFFDDF4EA), onTertiaryContainer = Color(0xFF0E3B2C),
     background = Color.White, onBackground = Ink,
     surface = Color.White, onSurface = Ink,
-    surfaceVariant = Color(0xFFF7EDE8), onSurfaceVariant = Color(0xFF6B5E6E),
-    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFFFFBF9),
-    surfaceContainer = Color(0xFFFFF8F5), surfaceContainerHigh = Color(0xFFFFF5F1),
-    surfaceContainerHighest = Color(0xFFFFF1EB),
-    outline = Color(0xFFB9A8A2), outlineVariant = Color(0xFFF1E2DC),
+    surfaceVariant = Color(0xFFEEF3FA), onSurfaceVariant = Color(0xFF5E6675),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFFAFCFF),
+    surfaceContainer = Color(0xFFF5F9FF), surfaceContainerHigh = Color(0xFFF0F5FD),
+    surfaceContainerHighest = Color(0xFFEAF1FB),
+    outline = Color(0xFFA3B1C4), outlineVariant = Color(0xFFDCE6F3),
 )
 
 private val SoftShapes = Shapes(
@@ -54,7 +55,7 @@ fun MindfulTheme(content: @Composable () -> Unit) {
 @Composable
 fun isDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-enum class CardTone { Plain, Peach, Lavender }
+enum class CardTone { Plain, Accent, Lavender }
 
 /**
  * The app's card. Plain cards are white with a soft outline: chart colors are tuned for white.
@@ -69,7 +70,7 @@ fun SoftCard(
     val c = MaterialTheme.colorScheme
     val (container, onContainer) = when (tone) {
         CardTone.Plain -> c.surface to c.onSurface
-        CardTone.Peach -> c.primaryContainer to c.onPrimaryContainer
+        CardTone.Accent -> c.primaryContainer to c.onPrimaryContainer
         CardTone.Lavender -> c.secondaryContainer to c.onSecondaryContainer
     }
     Card(

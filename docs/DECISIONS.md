@@ -353,3 +353,11 @@ light:
 - **The phone's dark mode is ignored for now.** Charts read the theme, not the system
   (`isDarkTheme()`), so adding a dark option later is a theme change only.
 - **No streaks or confetti:** an anti-doomscroll app shouldn't become an attention hook itself.
+
+**Revised the same day (your call): blue replaces peach.** You prefer blue. The accent is
+`#2766C2` (white text on it 5.6:1), pale blue `#E3F0FF` replaces the peach cards, and the warm
+neutrals (outlines, the bedtime band) are now cool blue-grays. Lavender and mint stay. The app has
+a mascot, a calm blue sprout with closed eyes: it's the launcher icon (adaptive, with a one-color
+themed version) and it sits on top of the pause screen. Buttons are soft pills with an emoji and a
+small squish when pressed. "Never mind" is the only solid blue button on the pause screen, and
+"Continue anyway" stays a plain text link, so leaving always looks more inviting than staying.

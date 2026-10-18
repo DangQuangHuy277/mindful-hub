@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Mindful Hub's mascot: a calm blue sprout with closed eyes. Drawn on the 108 dp adaptive-icon
+  grid, so it's both the launcher foreground and the face on the pause screen.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="52"
+        android:scaleX="1.18"
+        android:scaleY="1.18"
+        android:translateY="2">
+        <!-- body -->
+        <path
+            android:fillColor="#6FA8F0"
+            android:pathData="M54,38 C68,38 77,48 77,61 C77,73 67,80 54,80 C41,80 31,73 31,61 C31,48 40,38 54,38 Z" />
+        <!-- shine -->
+        <group
+            android:pivotX="42.5"
+            android:pivotY="47.5"
+            android:rotation="-30">
+            <path
+                android:fillAlpha="0.6"
+                android:fillColor="#FFFFFF"
+                android:pathData="M38.3,47.5 a4.2,2.6 0 1,0 8.4,0 a4.2,2.6 0 1,0 -8.4,0 Z" />
+        </group>
+        <!-- sprout -->
+        <path
+            android:pathData="M54,39 L54,32"
+            android:strokeWidth="2.4"
+            android:strokeColor="#2E7D62"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#6CCB9A"
+            android:pathData="M54,34 C48,35 43.5,31.5 44,26 C49.5,25.5 53.5,29 54,34 Z" />
+        <path
+            android:fillColor="#3FA877"
+            android:pathData="M54,33 C59.5,34 64.5,30 64,24 C58,23.5 54,27.5 54,33 Z" />
+        <!-- calm closed eyes -->
+        <path
+            android:pathData="M43.5,59 Q47,62.5 50.5,59"
+            android:strokeWidth="2.3"
+            android:strokeColor="#0C2D57"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M57.5,59 Q61,62.5 64.5,59"
+            android:strokeWidth="2.3"
+            android:strokeColor="#0C2D57"
+            android:strokeLineCap="round" />
+        <!-- blush -->
+        <path
+            android:fillAlpha="0.55"
+            android:fillColor="#FF8FA3"
+            android:pathData="M38.4,65.5 a3.6,2.2 0 1,0 7.2,0 a3.6,2.2 0 1,0 -7.2,0 Z" />
+        <path
+            android:fillAlpha="0.55"
+            android:fillColor="#FF8FA3"
+            android:pathData="M62.4,65.5 a3.6,2.2 0 1,0 7.2,0 a3.6,2.2 0 1,0 -7.2,0 Z" />
+        <!-- smile -->
+        <path
+            android:pathData="M51.5,66 Q54,68.5 56.5,66"
+            android:strokeWidth="2"
+            android:strokeColor="#0C2D57"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon version of the mascot (Android 13+): one color, so the face is drawn as lines. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="52"
+        android:scaleX="1.18"
+        android:scaleY="1.18"
+        android:translateY="2">
+        <path
+            android:pathData="M54,38 C68,38 77,48 77,61 C77,73 67,80 54,80 C41,80 31,73 31,61 C31,48 40,38 54,38 Z"
+            android:strokeWidth="3.2"
+            android:strokeColor="#000000" />
+        <path
+            android:pathData="M54,38 L54,32"
+            android:strokeWidth="2.4"
+            android:strokeColor="#000000"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#000000"
+            android:pathData="M54,34 C48,35 43.5,31.5 44,26 C49.5,25.5 53.5,29 54,34 Z" />
+        <path
+            android:fillColor="#000000"
+            android:pathData="M54,33 C59.5,34 64.5,30 64,24 C58,23.5 54,27.5 54,33 Z" />
+        <path
+            android:pathData="M43.5,59 Q47,62.5 50.5,59 M57.5,59 Q61,62.5 64.5,59"
+            android:strokeWidth="2.5"
+            android:strokeColor="#000000"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M51.5,66 Q54,68.5 56.5,66"
+            android:strokeWidth="2.2"
+            android:strokeColor="#000000"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

@@ -29,7 +29,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +54,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.dangquanghuy277.mindfulhub.theme.CardTone
+import io.github.dangquanghuy277.mindfulhub.theme.PillButton
 import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
 import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
 import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
@@ -152,13 +152,11 @@ private fun GateOnPill() {
 @Composable
 private fun GateOffCard() {
     val context = LocalContext.current
-    SoftCard(tone = CardTone.Peach) {
+    SoftCard(tone = CardTone.Accent) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Gate is off", style = MaterialTheme.typography.titleMedium)
             Text("Turn on \"Mindful Hub gate\" in Accessibility > Installed apps. It only checks which app is in front.")
-            Button(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
-                Text("Open accessibility settings")
-            }
+            PillButton("Open accessibility settings", onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }, emoji = "🔓")
         }
     }
 }
@@ -166,13 +164,11 @@ private fun GateOffCard() {
 @Composable
 private fun PermissionCard() {
     val context = LocalContext.current
-    SoftCard(tone = CardTone.Peach) {
+    SoftCard(tone = CardTone.Accent) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Usage access needed", style = MaterialTheme.typography.titleMedium)
             Text("Mindful Hub reads which app was on screen and when. Everything stays on this phone.")
-            Button(onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }) {
-                Text("Open usage access settings")
-            }
+            PillButton("Open usage access settings", onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }, emoji = "📊")
         }
     }
 }
