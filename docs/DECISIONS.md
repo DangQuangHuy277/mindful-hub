@@ -379,6 +379,24 @@ off in Settings and back on afterwards.
 - **Tested on the S22 (2026-10-19):** the gate switches off 26 ms after the bank's window event
   and back on about 3 s after you reach the home screen. Facebook is prompted normally afterwards.
 - **Techcombank also refuses USB debugging** ("This device is in Android Debug Bridge mode"), even
-  with the gate fully off, so the bank side can't be tested over adb. **Unknown:** whether it
-  checks accessibility only at launch, before the gate has seen its window. If so, the first open
-  is refused and the second works.
+  with the gate fully off, so the bank side can't be tested over adb.
+
+**Revised the same day: bank shortcuts, because the first open closed Techcombank.** You saw
+Techcombank close itself on the first open (the gate then switched off, so the second open
+worked). It checks as its process starts, and the gate only hears about it from the bank's first
+window, about 600 ms later (VNPAY cold start on the S22: process at +0.03 s, window event at
++0.64 s). Nothing earlier is visible: One UI's launcher sends no click event for icon taps, and
+the system splash window isn't in the accessibility window list (both checked on the device). So:
+- **Mindful Hub's icon now carries the banks as shortcuts** (long-press it: Techcombank, VCB
+  Digibank, BIDV SmartBanking, MoMo first; more on One UI's full list). Drag one to the home screen
+  in place of the bank's own icon. Tapping it switches the gate off, waits until Android has
+  unbound it, then starts the bank (measured: gate off 130 ms before the bank's process started).
+- **Opening a bank any other way** (its own icon, recents, a notification) still pauses on the
+  window event as before, so a cold start of Techcombank can still close once.
+- If the shortcut starts the bank but the bank never comes to the front, the watcher turns the
+  gate back on after 15 s.
+- **Checked against Techcombank (2026-10-19, logs from your test):** opened from its own icon, its
+  process started at 01:21:07.42 (Samsung starts it on touch), the gate paused at 08.34, and
+  Techcombank finished its task and killed its own process at 08.50. Opened through the shortcut,
+  the gate was off before the process started, and Techcombank stayed open. It got as far as its
+  separate USB-debugging check, which it only shows once the accessibility check has passed.

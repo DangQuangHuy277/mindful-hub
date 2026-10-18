@@ -132,6 +132,10 @@ UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" an
   still reading the database for the first open of the day; trusting it skipped the prompt
   entirely. Decisions that would let you through now check the window list
   (`flagRetrieveInteractiveWindows`) instead of the last event.
+- **The gate can't see an app launch before the app's first window.** One UI's launcher sends no
+  `TYPE_VIEW_CLICKED` for icon taps, and the splash window isn't in the window list. A cold start
+  runs the app's code about 600 ms before the gate hears of it, which is why banks get a shortcut
+  that pauses the gate first (D-020).
 - **Time boxes must be persisted**: an in-memory timer is lost on any service re-bind. Open
   sessions are reloaded from Room on connect.
 - `adb install` (streamed) dropped the USB link on this phone; `adb push` + `pm install` works.

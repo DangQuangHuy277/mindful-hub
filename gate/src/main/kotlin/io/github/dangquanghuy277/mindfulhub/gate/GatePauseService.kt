@@ -33,6 +33,8 @@ class GatePauseService : Service() {
     private var top: String? = null
     private var topSince = 0L
     private var lastQuery = 0L
+    /** Paused by the bank shortcut: the bank isn't in front yet, and may never come (e.g. a crash). */
+    private var waitingSince = 0L
     private var launchers: Set<String> = emptySet()
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -61,7 +63,10 @@ class GatePauseService : Service() {
         val now = System.currentTimeMillis()
         top = pkg
         topSince = now
-        lastQuery = now - 5_000
+        waitingSince = if (intent.getBooleanExtra(EXTRA_LAUNCHING, false)) now else 0L
+        // Only events from now on: replaying the launcher's earlier resume would end a shortcut
+        // pause before the bank has even started.
+        lastQuery = now
         main.removeCallbacks(poll)
         main.postDelayed(poll, POLL_MS)
         return START_NOT_STICKY
@@ -77,7 +82,9 @@ class GatePauseService : Service() {
             val events = usage.queryEvents(lastQuery, now)
             val e = UsageEvents.Event()
             while (events.getNextEvent(e)) {
-                if (e.eventType == UsageEvents.Event.ACTIVITY_RESUMED && e.packageName != top) {
+                if (e.eventType != UsageEvents.Event.ACTIVITY_RESUMED) continue
+                if (e.packageName == pkg) waitingSince = 0L
+                if (e.packageName != top) {
                     top = e.packageName
                     topSince = e.timeStamp
                 }
@@ -85,6 +92,7 @@ class GatePauseService : Service() {
             lastQuery = now - 1_000 // overlap: replaying an event only re-sets the same answer
             val t = top
             when {
+                waitingSince != 0L && now - waitingSince >= LAUNCH_TIMEOUT_MS -> return resume()
                 t == null || t == pkg || t == packageName -> Unit
                 settings().pausesGate(t) -> { pkg = t; pausedFor = t } // bank to bank: stay off
                 now - topSince >= graceFor(t) -> return resume()
@@ -162,10 +170,12 @@ class GatePauseService : Service() {
         private const val CHANNEL = "gate-pause"
         private const val NOTIFICATION_ID = 2
         private const val EXTRA_PKG = "pkg"
+        private const val EXTRA_LAUNCHING = "launching"
         private const val ACTION_RESUME = "resume"
         private const val POLL_MS = 1_000L
         private const val HOME_GRACE_MS = 2_000L
         private const val OTHER_GRACE_MS = 60_000L
+        private const val LAUNCH_TIMEOUT_MS = 15_000L
 
         /** The banking app the gate is paused for, or null. Read by the hourly health check. */
         @Volatile
@@ -173,8 +183,10 @@ class GatePauseService : Service() {
             private set
 
         /** Called by the gate just before it switches itself off. False if Android refused. */
-        fun start(context: Context, pkg: String): Boolean = runCatching {
-            context.startForegroundService(Intent(context, GatePauseService::class.java).putExtra(EXTRA_PKG, pkg))
+        fun start(context: Context, pkg: String, launching: Boolean): Boolean = runCatching {
+            context.startForegroundService(
+                Intent(context, GatePauseService::class.java).putExtra(EXTRA_PKG, pkg).putExtra(EXTRA_LAUNCHING, launching),
+            )
         }.onFailure { Log.w(TAG, "could not start the pause watcher", it) }.isSuccess
     }
 }

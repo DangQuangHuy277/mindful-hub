@@ -24,6 +24,15 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/gate_accessibility" />
         </service>
+        <!-- Bank shortcut target (D-020). Exported so the launcher can start it; it only ever
+             pauses the gate for an app in pauseFor, and the watcher turns it back on. -->
+        <activity
+            android:name="io.github.dangquanghuy277.mindfulhub.gate.BankLaunchActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <service
             android:name="io.github.dangquanghuy277.mindfulhub.gate.GatePauseService"
             android:exported="false"

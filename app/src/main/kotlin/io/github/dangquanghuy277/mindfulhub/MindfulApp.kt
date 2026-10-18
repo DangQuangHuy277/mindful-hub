@@ -20,6 +20,7 @@ import io.github.dangquanghuy277.mindfulhub.core.LogicalDayClock
 import io.github.dangquanghuy277.mindfulhub.data.MindfulDatabase
 import io.github.dangquanghuy277.mindfulhub.data.UsageRepository
 import io.github.dangquanghuy277.mindfulhub.data.UsageStatsImporter
+import io.github.dangquanghuy277.mindfulhub.gate.BankLaunchActivity
 import io.github.dangquanghuy277.mindfulhub.gate.GateDeps
 import io.github.dangquanghuy277.mindfulhub.gate.GateHost
 import io.github.dangquanghuy277.mindfulhub.gate.GatePauseService
@@ -48,6 +49,7 @@ class MindfulApp : Application(), GateHost {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        BankLaunchActivity.publishShortcuts(this, container.gateSettings)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(HEALTH_CHANNEL, "Gate health", NotificationManager.IMPORTANCE_HIGH),
         )

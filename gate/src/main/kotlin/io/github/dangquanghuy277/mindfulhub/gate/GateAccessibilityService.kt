@@ -64,6 +64,7 @@ class GateAccessibilityService : AccessibilityService() {
         val imes = getSystemService(InputMethodManager::class.java).enabledInputMethodList.map { it.packageName }
         ignored = setOf(packageName, "android", "com.android.systemui") + imes
         restoreSessions()
+        connected = this
     }
 
     /**
@@ -165,7 +166,10 @@ class GateAccessibilityService : AccessibilityService() {
     }
 
     private fun onForeground(pkg: String) {
-        if (deps.settings.pausesGate(pkg)) return pause(pkg)
+        if (deps.settings.pausesGate(pkg)) {
+            pause(pkg)
+            return
+        }
         val profile = deps.settings.profileOf(pkg)
         if (profile == AppProfile.NONE) return
         val now = Instant.now()
@@ -184,13 +188,18 @@ class GateAccessibilityService : AccessibilityService() {
      * Banking apps refuse to run while we're on (D-020), so the gate switches itself off and
      * [GatePauseService] switches it back on after you leave. If the watcher can't start, the gate
      * stays on: being stuck off with nothing to bring it back would be worse.
+     *
+     * The bank's window event comes about 600 ms after its code starts, too late for Techcombank,
+     * which checks as it starts and closes itself on that first open. [BankLaunchActivity] pauses
+     * before the launch instead.
      */
-    private fun pause(pkg: String) {
-        Log.i(TAG, "pausing for $pkg")
-        if (!GatePauseService.start(this, pkg)) return
+    private fun pause(pkg: String, launching: Boolean = false): Boolean {
+        Log.i(TAG, "pausing for $pkg${if (launching) " (before launch)" else ""}")
+        if (!GatePauseService.start(this, pkg, launching)) return false
         promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id, "ABANDONED") } }
         closePrompt()
         disableSelf()
+        return true
     }
 
     /**
@@ -302,14 +311,24 @@ class GateAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
-    private companion object {
+    companion object {
         /** `adb shell setprop log.tag.MindfulGate DEBUG` turns on per-switch logging (off by default). */
-        const val TAG = "MindfulGate"
-        const val LEAVE_CONFIRM_MS = 600L
-        const val DETECT_INTERVAL_MS = 800L
+        private const val TAG = "MindfulGate"
+        private const val LEAVE_CONFIRM_MS = 600L
+        private const val DETECT_INTERVAL_MS = 800L
+
+        /** The connected gate, if any. Same process as the app, so the bank shortcut can reach it. */
+        @Volatile
+        private var connected: GateAccessibilityService? = null
+
+        val isConnected: Boolean get() = connected != null
+
+        /** Switches the gate off for [pkg] before it starts (the bank shortcut). Main thread only. */
+        fun pauseBeforeLaunch(pkg: String): Boolean = connected?.pause(pkg, launching = true) ?: false
     }
 
     override fun onDestroy() {
+        connected = null
         overlay.dismiss()
         main.removeCallbacksAndMessages(null)
         main.removeCallbacks(confirmLeave)
