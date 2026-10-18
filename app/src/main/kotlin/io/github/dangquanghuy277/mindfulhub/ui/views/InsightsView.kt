@@ -1,5 +1,6 @@
 package io.github.dangquanghuy277.mindfulhub.ui.views
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,19 +17,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.dangquanghuy277.mindfulhub.core.DayUse
 import io.github.dangquanghuy277.mindfulhub.core.Insight
 import io.github.dangquanghuy277.mindfulhub.core.InsightInput
 import io.github.dangquanghuy277.mindfulhub.core.UsageAnalytics
 import io.github.dangquanghuy277.mindfulhub.core.UsageInsights
+import io.github.dangquanghuy277.mindfulhub.ui.AppPalette
 import io.github.dangquanghuy277.mindfulhub.ui.formatMinutes
+import io.github.dangquanghuy277.mindfulhub.ui.formatMinutesShort
 import io.github.dangquanghuy277.mindfulhub.ui.rememberFormatter
 import java.time.Duration
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** D-018 option A + D + C: findings in words, then the week by day, then the average day by hour. */
+/**
+ * D-018 option D + C + A: the week by day, the average day by hour, then findings in words. The
+ * charts come first because you read them faster; both are stacked by app, and tapping an app in
+ * either legend isolates it in both.
+ */
 object InsightsView : UsageView {
     override val id = "insights"
     override val label = "Insights"
@@ -36,37 +44,63 @@ object InsightsView : UsageView {
     @Composable
     override fun Content(data: UsageSnapshot) {
         val model = remember(data) { InsightsModel.of(data) }
+        var isolated by remember(model) { mutableStateOf<Int?>(null) }
+        val colors = AppPalette.colorsFor(model.series, isSystemInDarkTheme())
+        val labels = model.series.map { if (it == AppPalette.OTHER) "Other" else data.label(it) }
+        val onTap = { i: Int -> isolated = if (isolated == i) null else i }
+        WeekCard(model, data, labels, colors, isolated, onTap)
+        HourCard(model, data, labels, colors, isolated, onTap)
         InsightsCard(model.insights, data)
-        WeekCard(model, data)
-        HourCard(model, data)
     }
 }
 
 private class InsightsModel(
     val insights: List<Insight>,
+    /** Stack order, bottom first: the biggest apps, then [AppPalette.OTHER] if anything is left. */
+    val series: List<String>,
     val week: List<DayUse>,
+    /** `[day][series]` minutes. */
+    val weekBySeries: List<List<Double>>,
     val lastWeek: List<DayUse>?,
     val hours: List<Int>,
-    val hourAverages: List<Double>,
+    /** `[hour][series]` average minutes per day. */
+    val hourBySeries: List<List<Double>>,
 ) {
     companion object {
+        private const val MAX_APPS = 5
+
         fun of(d: UsageSnapshot): InsightsModel {
             val included = d.sessions.filter { d.includes(it.pkg) }
             val input = InsightInput(
                 d.sessions, d::includes, d.clock, d.days, d.previousDays, d.bedtime, d.now,
                 d.gateToday.prompts, d.gateToday.abandoned,
             )
-            val heatmap = UsageAnalytics.heatmap(included, d.clock, d.days)
+            val top = UsageAnalytics.totals(included, d.clock.startOf(d.days.first()), d.now).take(MAX_APPS).map { it.pkg }
+            val series = top + if (included.any { it.pkg !in top }) listOf(AppPalette.OTHER) else emptyList()
+            val filters = series.map { key -> if (key == AppPalette.OTHER) { p: String -> p !in top } else { p: String -> p == key } }
+            val perDay = filters.map { f -> UsageInsights.dayUse(included, d.clock, d.days, d.bedtime, f).map { it.minutes } }
+            val perHour = filters.map { f -> UsageAnalytics.heatmap(included, d.clock, d.days, f).averageByHour() }
             return InsightsModel(
                 insights = UsageInsights.insights(input),
+                series = series,
                 week = UsageInsights.dayUse(included, d.clock, d.days, d.bedtime),
+                weekBySeries = d.days.indices.map { day -> perDay.map { it[day] } },
                 lastWeek = d.previousDays?.let { UsageInsights.dayUse(included, d.clock, it, d.bedtime) },
-                hours = heatmap.hours,
-                hourAverages = heatmap.averageByHour(),
+                hours = d.clock.hoursInOrder(),
+                hourBySeries = (0 until 24).map { h -> perHour.map { it[h] } },
             )
         }
     }
 }
+
+/** Zeroes every series but [isolated], so the chart rescales to that one app. */
+private fun List<List<Double>>.only(isolated: Int?): List<List<Double>> =
+    if (isolated == null) this else map { row -> row.mapIndexed { i, v -> if (i == isolated) v else 0.0 } }
+
+/** "Facebook 3 h 13 m, X 36 m, YouTube 12 m": the biggest parts of one bar. */
+private fun breakdown(row: List<Double>, labels: List<String>): String =
+    row.indices.filter { row[it] >= 0.5 }.sortedByDescending { row[it] }.take(3)
+        .joinToString { "${labels[it]} ${formatMinutes(row[it])}" }
 
 @Composable
 private fun InsightsCard(insights: List<Insight>, data: UsageSnapshot) {
@@ -131,30 +165,35 @@ private fun insightText(insight: Insight, data: UsageSnapshot): String {
 }
 
 @Composable
-private fun WeekCard(model: InsightsModel, data: UsageSnapshot) {
+private fun WeekCard(
+    model: InsightsModel, data: UsageSnapshot, labels: List<String>, colors: List<Color>, isolated: Int?, onTap: (Int) -> Unit,
+) {
     var picked by remember(model) { mutableStateOf<Int?>(null) }
     val dayFmt = rememberFormatter("EEE")
     val longFmt = rememberFormatter("EEE d MMM")
     val bed = rememberFormatter("HH:mm").format(data.bedtime)
-    val colors = chartColors()
+    val values = model.weekBySeries.only(isolated)
+    val dayLabels = model.week.map { if (it.day == data.days.last()) "Today" else dayFmt.format(it.day) }
     Card {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Per day", style = MaterialTheme.typography.titleSmall)
-            ChartLegend(
-                listOf("Before $bed" to colors.before, "After $bed" to colors.after) +
-                    if (model.lastWeek != null) listOf("Last week" to null) else emptyList(),
-            )
-            WeekTrendChart(
-                model.week, model.lastWeek,
-                model.week.map { if (it.day == data.days.last()) "Today" else dayFmt.format(it.day) },
-                picked, { picked = if (picked == it) null else it }, Modifier.fillMaxWidth(),
+            AppLegend(labels, colors, isolated, onTap)
+            StackedBarChart(
+                values, colors,
+                xLabel = { dayLabels[it] },
+                topLabel = { i -> values[i].sum().takeIf { it >= 1 }?.let(::formatMinutesShort) },
+                selected = picked, onSelect = { picked = if (picked == it) null else it },
+                description = "Minutes per day: " + values.indices.joinToString { "${dayLabels[it]} ${formatMinutesShort(values[it].sum())}" },
+                modifier = Modifier.fillMaxWidth(),
+                ghost = model.lastWeek?.takeIf { isolated == null }?.map { it.minutes },
             )
             Text(
                 picked?.let { i ->
                     val d = model.week[i]
-                    val last = model.lastWeek?.getOrNull(i)?.let { " · last week ${formatMinutes(it.minutes)}" } ?: ""
-                    "${longFmt.format(d.day)}: ${formatMinutes(d.minutes)}, ${formatMinutes(d.afterBedtime)} after $bed$last"
-                } ?: if (model.lastWeek == null) "Tap a day for details. Last week shows up once 14 days are stored." else "Tap a day for details",
+                    val last = model.lastWeek?.getOrNull(i)?.let { " Last week: ${formatMinutes(it.minutes)}." } ?: ""
+                    "${longFmt.format(d.day)}: ${formatMinutes(d.minutes)}, ${formatMinutes(d.afterBedtime)} after $bed. " +
+                        "${breakdown(model.weekBySeries[i], labels)}.$last"
+                } ?: if (model.lastWeek == null) "Tap a day for details. Last week shows up once 14 days are stored." else "Tap a day for details. Outline: last week.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -162,20 +201,35 @@ private fun WeekCard(model: InsightsModel, data: UsageSnapshot) {
 }
 
 @Composable
-private fun HourCard(model: InsightsModel, data: UsageSnapshot) {
+private fun HourCard(
+    model: InsightsModel, data: UsageSnapshot, labels: List<String>, colors: List<Color>, isolated: Int?, onTap: (Int) -> Unit,
+) {
     var picked by remember(model) { mutableStateOf<Int?>(null) }
+    val bed = rememberFormatter("HH:mm").format(data.bedtime)
     val bedtimeAt = Duration.between(
         data.clock.startOf(data.days.first()), data.clock.instantOn(data.days.first(), data.bedtime),
     ).toMinutes() / 60f
+    val values = model.hourBySeries.only(isolated)
+    val peak = values.indices.maxByOrNull { values[it].sum() }
     Card {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Average day, by hour", style = MaterialTheme.typography.titleSmall)
-            HourBarsChart(model.hours, model.hourAverages, bedtimeAt, picked, { picked = if (picked == it) null else it }, Modifier.fillMaxWidth())
+            AppLegend(labels, colors, isolated, onTap)
+            StackedBarChart(
+                values, colors,
+                xLabel = { i -> if (i % 6 == 0) "%02d".format(model.hours[i]) else null },
+                topLabel = { i -> if (i == peak && values[i].sum() >= 1) formatMinutesShort(values[i].sum()) else null },
+                selected = picked, onSelect = { picked = if (picked == it) null else it },
+                description = "Average minutes per hour; the busiest hour starts at ${peak?.let { model.hours[it] } ?: "none"}:00",
+                modifier = Modifier.fillMaxWidth(), height = 150.dp, barFraction = 0.8f, maxBarWidth = 24.dp,
+                bandFrom = bedtimeAt,
+            )
             Text(
                 picked?.let { i ->
                     val h = model.hours[i]
-                    "%02d:00–%02d:00 · ${formatMinutes(model.hourAverages[i])} a day on average".format(h, (h + 1) % 24)
-                } ?: "Shaded: after your bedtime. Tap an hour for details.",
+                    "%02d:00–%02d:00 · ${formatMinutes(values[i].sum())} a day on average. ".format(h, (h + 1) % 24) +
+                        breakdown(values[i], labels) + "."
+                } ?: "Shaded: after your $bed bedtime. Tap an hour for details.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

@@ -327,6 +327,12 @@ view:
 - Average minutes per hour, with the bedtime band shaded.
 - Gated apps are counted by default; "All apps" and single apps are filters.
 
+**Revised the same day (your call):** the charts come first and the text second, because you read
+the charts faster. Both charts are stacked by app: the top 5 apps plus "Other", in fixed colors per
+app (Facebook is always blue). Tapping an app in either legend shows only that app in both charts.
+Color now means the app, so before/after bedtime is shown by the shaded band and in the tap
+details instead of by bar color.
+
 **Views are switchable.** Each view implements `UsageView` and is listed in `UsageViews.all`;
 the tab row shows whatever is registered. The heatmap stays as the second view. B (day timeline)
 and F (scoreboard, once budgets exist in F04) are candidates for later views.

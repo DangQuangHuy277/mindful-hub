@@ -2,14 +2,17 @@ package io.github.dangquanghuy277.mindfulhub.ui.views
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -32,16 +36,14 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.dangquanghuy277.mindfulhub.core.DayUse
 import io.github.dangquanghuy277.mindfulhub.ui.HeatmapPalette
-import io.github.dangquanghuy277.mindfulhub.ui.formatMinutesShort
 
 /**
  * Bars, not shades: length on a shared baseline is read far more accurately than color
  * (Cleveland & McGill 1984), which is why these replaced the heatmap as the default (D-018).
- * The same two colors mean the same thing in every chart: before and after the bedtime target.
  */
 data class ChartColors(val before: Color, val after: Color)
 
@@ -49,101 +51,94 @@ data class ChartColors(val before: Color, val after: Color)
 fun chartColors(): ChartColors = HeatmapPalette.steps(isSystemInDarkTheme()).let { ChartColors(before = it[2], after = it[5]) }
 
 /**
- * One bar per day. The after-bedtime part sits on the baseline so it compares across days; last
- * week's total for the same weekday is an outline behind it.
+ * One bar per slot (a day or an hour), stacked by app: `values[slot][series]`, bottom series
+ * first. [ghost] draws an outline per slot (last week's total), [bandFrom] shades from that
+ * fractional slot to the end (after bedtime).
  */
 @Composable
-fun WeekTrendChart(
-    days: List<DayUse>,
-    lastWeek: List<DayUse>?,
-    dayLabels: List<String>,
+fun StackedBarChart(
+    values: List<List<Double>>,
+    colors: List<Color>,
+    xLabel: (Int) -> String?,
+    topLabel: (Int) -> String?,
     selected: Int?,
     onSelect: (Int) -> Unit,
+    description: String,
     modifier: Modifier = Modifier,
+    height: Dp = 170.dp,
+    barFraction: Float = 0.5f,
+    maxBarWidth: Dp = 28.dp,
+    ghost: List<Double>? = null,
+    bandFrom: Float? = null,
 ) {
-    val colors = chartColors()
-    val ghost = MaterialTheme.colorScheme.outline
-    val surface = MaterialTheme.colorScheme.surfaceContainerHighest
+    val ghostColor = MaterialTheme.colorScheme.outline
+    val gapColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val bandColor = MaterialTheme.colorScheme.surfaceVariant
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     val valueStyle = labelStyle.copy(color = MaterialTheme.colorScheme.onSurface)
-    val max = maxOf(days.maxOfOrNull { it.minutes } ?: 0.0, lastWeek?.maxOfOrNull { it.minutes } ?: 0.0, 1.0)
-    val description = "Minutes per day: " + days.zip(dayLabels).joinToString { (d, l) -> "$l ${formatMinutesShort(d.minutes)}" }
+    val max = maxOf(values.maxOfOrNull { it.sum() } ?: 0.0, ghost?.maxOrNull() ?: 0.0, 1.0)
 
     Canvas(
-        modifier.height(170.dp).semantics { contentDescription = description }.pointerInput(days) {
-            detectTapGestures { p -> onSelect((p.x / (size.width / days.size)).toInt().coerceIn(days.indices)) }
+        modifier.height(height).semantics { contentDescription = description }.pointerInput(values.size) {
+            detectTapGestures { p -> onSelect((p.x / (size.width / values.size)).toInt().coerceIn(values.indices)) }
         },
     ) {
         val top = 16.dp.toPx()
         val bottom = size.height - 18.dp.toPx()
         val scale = (bottom - top) / max.toFloat()
-        val slot = size.width / days.size
-        val barW = minOf(slot * 0.5f, 28.dp.toPx())
-        days.forEachIndexed { i, d ->
+        val slot = size.width / values.size
+        val barW = minOf(slot * barFraction, maxBarWidth.toPx())
+        val gap = 1.dp.toPx()
+        bandFrom?.let { drawRect(bandColor, Offset(slot * it, 0f), Size(size.width - slot * it, bottom)) }
+        values.forEachIndexed { i, stack ->
             val cx = slot * i + slot / 2
+            val left = cx - barW / 2
             val alpha = if (selected == null || selected == i) 1f else 0.4f
-            lastWeek?.getOrNull(i)?.let { g ->
-                val gh = g.minutes.toFloat() * scale
+            ghost?.getOrNull(i)?.let { g ->
+                val gh = g.toFloat() * scale
                 val pad = 4.dp.toPx()
                 drawRoundRect(
-                    ghost, Offset(cx - barW / 2 - pad, bottom - gh), Size(barW + 2 * pad, gh),
+                    ghostColor, Offset(left - pad, bottom - gh), Size(barW + 2 * pad, gh),
                     CornerRadius(4.dp.toPx()), style = Stroke(1.dp.toPx()), alpha = alpha,
                 )
             }
-            val total = d.minutes.toFloat() * scale
-            val late = d.afterBedtime.toFloat() * scale
-            topRoundedBar(cx - barW / 2, bottom - total, barW, total, colors.before, alpha)
-            if (late > 0f) {
-                drawRect(colors.after, Offset(cx - barW / 2, bottom - late), Size(barW, late), alpha = alpha)
-                if (late < total) drawRect(surface, Offset(cx - barW / 2, bottom - late - 1.dp.toPx()), Size(barW, 1.dp.toPx()))
+            val total = stack.sum().toFloat() * scale
+            // The whole bar gets the rounded top in the top segment's color; segments are painted over it.
+            val topIndex = stack.indices.lastOrNull { stack[it] > 0 }
+            if (topIndex != null) topRoundedBar(left, bottom - total, barW, total, colors[topIndex], alpha)
+            var y = bottom
+            stack.forEachIndexed { s, v ->
+                val h = v.toFloat() * scale
+                if (h <= 0f || s == topIndex) return@forEachIndexed
+                drawRect(colors[s], Offset(left, y - h), Size(barW, h), alpha = alpha)
+                drawRect(gapColor, Offset(left, y - h - gap), Size(barW, gap))
+                y -= h
             }
-            if (d.minutes >= 1) centeredText(measurer, formatMinutesShort(d.minutes), cx, bottom - total - 14.dp.toPx(), valueStyle)
-            centeredText(measurer, dayLabels[i], cx, bottom + 4.dp.toPx(), labelStyle)
+            topLabel(i)?.let { centeredText(measurer, it, cx, bottom - total - 14.dp.toPx(), valueStyle) }
+            xLabel(i)?.let { centeredText(measurer, it, cx, bottom + 4.dp.toPx(), labelStyle) }
         }
     }
 }
 
-/** Average minutes per clock hour, in logical-day order. The bedtime band is shaded. */
+/** Tappable legend: tapping an app isolates it in the charts; tapping it again shows all. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun HourBarsChart(
-    hours: List<Int>,
-    averages: List<Double>,
-    /** Fractional bar index where the bedtime target falls, e.g. 20.5 for 00:30 with a 04:00 day. */
-    bedtimeAt: Float,
-    selected: Int?,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = chartColors()
-    val band = MaterialTheme.colorScheme.surfaceVariant
-    val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    val valueStyle = labelStyle.copy(color = MaterialTheme.colorScheme.onSurface)
-    val max = maxOf(averages.maxOrNull() ?: 0.0, 1.0)
-    val peak = averages.indices.maxByOrNull { averages[it] }
-    val description = "Average minutes per hour; the busiest hour starts at ${peak?.let { hours[it] } ?: "none"}:00"
-
-    Canvas(
-        modifier.height(150.dp).semantics { contentDescription = description }.pointerInput(hours) {
-            detectTapGestures { p -> onSelect((p.x / (size.width / hours.size)).toInt().coerceIn(hours.indices)) }
-        },
-    ) {
-        val top = 16.dp.toPx()
-        val bottom = size.height - 18.dp.toPx()
-        val scale = (bottom - top) / max.toFloat()
-        val slot = size.width / hours.size
-        drawRect(band, Offset(slot * bedtimeAt, 0f), Size(size.width - slot * bedtimeAt, bottom))
-        averages.forEachIndexed { i, v ->
-            val h = v.toFloat() * scale
-            val color = if (i >= bedtimeAt) colors.after else colors.before
-            val alpha = if (selected == null || selected == i) 1f else 0.4f
-            if (h > 0f) topRoundedBar(slot * i + 1.dp.toPx(), bottom - h, slot - 2.dp.toPx(), h, color, alpha)
-            if (i % 6 == 0) centeredText(measurer, "%02d".format(hours[i]), slot * i, bottom + 4.dp.toPx(), labelStyle)
-        }
-        if (peak != null && averages[peak] >= 1) {
-            val label = formatMinutesShort(averages[peak])
-            centeredText(measurer, label, slot * peak + slot / 2, bottom - averages[peak].toFloat() * scale - 14.dp.toPx(), valueStyle)
+fun AppLegend(labels: List<String>, colors: List<Color>, isolated: Int?, onTap: (Int) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        labels.forEachIndexed { i, label ->
+            val dim = isolated != null && isolated != i
+            Row(
+                Modifier.clip(RoundedCornerShape(8.dp)).clickable { onTap(i) }.padding(horizontal = 6.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(10.dp).background(colors[i].copy(alpha = if (dim) 0.3f else 1f), RoundedCornerShape(2.dp)))
+                Spacer(Modifier.size(4.dp))
+                Text(
+                    label, style = MaterialTheme.typography.labelMedium,
+                    color = if (dim) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }
@@ -158,22 +153,6 @@ fun Sparkline(values: List<Double>, modifier: Modifier = Modifier) {
         values.forEachIndexed { i, v ->
             val h = (v / max).toFloat() * size.height
             topRoundedBar(slot * i + 1.dp.toPx(), size.height - h, slot - 2.dp.toPx(), h, color, 1f)
-        }
-    }
-}
-
-@Composable
-fun ChartLegend(items: List<Pair<String, Color?>>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        val outline = MaterialTheme.colorScheme.outline
-        items.forEach { (label, color) ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val shape = RoundedCornerShape(2.dp)
-                // A null color means "outline", the last-week marker.
-                Box(Modifier.size(10.dp).then(if (color != null) Modifier.background(color, shape) else Modifier.border(1.dp, outline, shape)))
-                Spacer(Modifier.size(4.dp))
-                Text(label, style = MaterialTheme.typography.labelSmall)
-            }
         }
     }
 }
