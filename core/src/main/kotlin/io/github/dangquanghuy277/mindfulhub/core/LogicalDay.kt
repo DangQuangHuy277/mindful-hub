@@ -2,6 +2,7 @@ package io.github.dangquanghuy277.mindfulhub.core
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 
 /**
@@ -22,6 +23,12 @@ data class LogicalDayClock(val zone: ZoneId, val boundaryHour: Int = 4) {
     fun startOf(day: LocalDate): Instant = day.atTime(boundaryHour, 0).atZone(zone).toInstant()
 
     fun endOf(day: LocalDate): Instant = startOf(day.plusDays(1))
+
+    /** The instant [time] falls inside [day]. Times before the boundary are on the next date: 00:30 of Mon is Tue 00:30. */
+    fun instantOn(day: LocalDate, time: LocalTime): Instant {
+        val date = if (time.hour < boundaryHour) day.plusDays(1) else day
+        return date.atTime(time).atZone(zone).toInstant()
+    }
 
     /** Clock hours in logical-day order, e.g. 4, 5, … 23, 0, … 3 for a 04:00 boundary. */
     fun hoursInOrder(): List<Int> = (0 until 24).map { (boundaryHour + it) % 24 }

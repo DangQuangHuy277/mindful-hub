@@ -15,7 +15,7 @@ Every idea we raised so far, plus one new one from your data (F21).
 - **F06 Short-video blocking**: Blocks the Reels and Shorts screens inside the apps. (E8)
 - **F07 One-video pass**: A video someone sent you plays, but the next swipe is blocked. (E10)
 - **F08 Morning lock**: No feeds until 30 min after your planned wake time. (S2)
-- **F09 Usage logger + heatmap**: Logs app opens, sessions and unlocks, and draws an hour × day chart. (A1)
+- **F09 Usage logger + views**: Logs app opens, sessions and unlocks. Shows findings in words, per-day and per-hour bars, and the heatmap as switchable views (D-018). (A1)
 - **F10 1-tap worth-it rating**: 👍 / 😐 / 👎 when a session ends. (A2)
 - **F11 Weekly review, one change**: 10 min on Sunday: charts against the baseline, then pick one change. (F3)
 - **F12 WHO-5 weekly**: A 5-item well-being check inside the review. (A3)

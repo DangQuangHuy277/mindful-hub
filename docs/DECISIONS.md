@@ -307,3 +307,26 @@ Stack choices are proposed in STACK-OPTIONS.md (S1–S9) and still wait on you.
 - Room + DataStore, manual DI, Vico, `adb install`, Auto Backup.
 
 Architecture: ARCHITECTURE.md.
+
+## D-018: The usage screen leads with findings in words, and views are switchable
+2026-10-18. **Decided (your call).** You found the hour × day heatmap hard to learn from. The
+research agrees on why:
+- **Shades are the weakest encoding.** Color saturation ranks near the bottom of Cleveland &
+  McGill's accuracy ranking (1984); position and length on a shared baseline rank at the top.
+- **Charts alone rarely lead to reflection.** It has to be prompted (Choe 2017). In a CHI 2024
+  study (Strömel, n = 273), written descriptions next to charts led to more reflection than charts alone.
+- **Plain cost framing works but stresses.** In TimeAware (Kim 2016), only the distraction-framed
+  version improved behavior, and it raised stress. So a win is always stated as well.
+
+Six options were scored (A insight cards 90%, D week trend 83%, F app scoreboard 82%, C hour bars
+77%, B day timeline 70%, E fix the heatmap 48%). **Chosen: A + D + C** as the default "Insights"
+view:
+- 3–6 findings in plain sentences (`:core` `UsageInsights`): after-bedtime minutes, the first app
+  after waking, the week-over-week change, the longest session, the peak hour, today's pause wins.
+- Per-day bars, with the after-bedtime part on the baseline and last week as an outline.
+- Average minutes per hour, with the bedtime band shaded.
+- Gated apps are counted by default; "All apps" and single apps are filters.
+
+**Views are switchable.** Each view implements `UsageView` and is listed in `UsageViews.all`;
+the tab row shows whatever is registered. The heatmap stays as the second view. B (day timeline)
+and F (scoreboard, once budgets exist in F04) are candidates for later views.

@@ -13,6 +13,9 @@ class Heatmap(
 ) {
     operator fun get(day: LocalDate, hour: Int): Double = minutes[day to hour] ?: 0.0
     val total: Double get() = minutes.values.sum()
+
+    /** Average minutes per day for each hour, in [hours] order. */
+    fun averageByHour(): List<Double> = hours.map { h -> days.sumOf { this[it, h] } / days.size }
 }
 
 data class AppTotal(val pkg: String, val minutes: Double, val opens: Int)

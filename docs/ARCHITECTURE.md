@@ -133,6 +133,12 @@ UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" an
   sessions are reloaded from Room on connect.
 - `adb install` (streamed) dropped the USB link on this phone; `adb push` + `pm install` works.
 
+## Usage views (D-018)
+`:app` `ui/views/UsageView.kt` holds the registry. Each view gets one `UsageSnapshot`: sessions for
+two weeks, the clock, the app filter, the bedtime and today's gate counts. From that it derives its
+own model, so a new view touches no other code. Rules that state facts (`UsageInsights`) live in
+`:core` and are unit-tested, because a wrong sentence misleads more than a wrong pixel.
+
 ## Build order (from FEATURES-V1.md)
 1. **Skeleton + logger (F09)**: modules, Room, UsageStatsImporter, hour × day heatmap. This starts the baseline week.
 2. Gate core (F16, F01, F02, F05) + spike items 1, 2 and 4.

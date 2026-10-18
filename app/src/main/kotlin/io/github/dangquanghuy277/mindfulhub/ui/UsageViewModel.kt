@@ -5,11 +5,13 @@ import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dangquanghuy277.mindfulhub.AppContainer
-import io.github.dangquanghuy277.mindfulhub.core.AppSession
-import io.github.dangquanghuy277.mindfulhub.core.Heatmap
+import io.github.dangquanghuy277.mindfulhub.core.AppProfile
 import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
 import io.github.dangquanghuy277.mindfulhub.core.UsageAnalytics
+import io.github.dangquanghuy277.mindfulhub.core.UsageInsights
 import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
+import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
+import io.github.dangquanghuy277.mindfulhub.ui.views.UsageSnapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
 
 data class AppRow(val pkg: String, val label: String, val minutesPerDay: Double, val opensPerDay: Double)
 
@@ -31,31 +32,28 @@ data class UsageUiState(
     val hasPermission: Boolean = true,
     val loading: Boolean = false,
     val historySince: Instant? = null,
-    val days: List<LocalDate> = emptyList(),
+    /** Top apps of the last 7 days, for the filter chips and the table. */
     val apps: List<AppRow> = emptyList(),
-    /** null = all apps (except launcher, system UI and this app). */
-    val selected: String? = null,
-    val heatmap: Heatmap? = null,
+    val filter: AppFilter = AppFilter.Gated,
+    val snapshot: UsageSnapshot? = null,
 )
 
 class UsageViewModel(private val app: Application, private val c: AppContainer) : ViewModel() {
     private val _state = MutableStateFlow(UsageUiState())
     val state = _state.asStateFlow()
 
-    private var sessions: List<AppSession> = emptyList()
     private val excluded: Set<String> by lazy { excludedPackages() }
+    private val gated: Set<String> by lazy {
+        c.gateSettings.profiles.filterValues { it != AppProfile.MESSAGING && it != AppProfile.NONE }.keys
+    }
 
     fun refresh() {
         viewModelScope.launch {
             val summary = c.gateDao.summary(c.clock.dayOf(Instant.now()).toString())
             fun count(decision: String, outcome: String? = null) =
                 summary.filter { it.decision == decision && (outcome == null || it.outcome == outcome) }.sumOf { it.n }
-            _state.update {
-                it.copy(
-                    gateEnabled = GateStatus.isEnabled(app),
-                    gateToday = GateToday(count("PROMPT"), count("PROMPT", "ABANDONED"), count("PROMPT", "PROCEEDED"), count("BLOCK")),
-                )
-            }
+            val gateToday = GateToday(count("PROMPT"), count("PROMPT", "ABANDONED"), count("PROMPT", "PROCEEDED"), count("BLOCK"))
+            _state.update { it.copy(gateEnabled = GateStatus.isEnabled(app), gateToday = gateToday) }
             if (!c.importer.hasPermission()) {
                 _state.update { it.copy(hasPermission = false) }
                 return@launch
@@ -66,30 +64,35 @@ class UsageViewModel(private val app: Application, private val c: AppContainer) 
             val now = Instant.now()
             val today = c.clock.dayOf(now)
             val days = (6 downTo 0).map { today.minusDays(it.toLong()) }
-            val from = c.clock.startOf(days.first())
+            val previous = (13 downTo 7).map { today.minusDays(it.toLong()) }
+            val history = c.usage.historySince()
             // Start 3 h early so a session already running at the window start is not lost.
-            val events = c.usage.events(from.minus(Duration.ofHours(3)), now)
-            val (apps, history) = withContext(Dispatchers.Default) {
-                sessions = Sessionizer.sessions(events, now)
-                val totals = UsageAnalytics.totals(sessions, from, now).filter { it.pkg !in excluded }
-                totals.take(10).map {
+            val events = c.usage.events(c.clock.startOf(previous.first()).minus(Duration.ofHours(3)), now)
+            val (apps, snapshot) = withContext(Dispatchers.Default) {
+                val sessions = Sessionizer.sessions(events, now).filter { it.pkg !in excluded }
+                val from = c.clock.startOf(days.first())
+                val apps = UsageAnalytics.totals(sessions, from, now).take(10).map {
                     AppRow(it.pkg, label(it.pkg), it.minutes / days.size, it.opens.toDouble() / days.size)
-                } to c.usage.historySince()
+                }
+                apps to UsageSnapshot(
+                    now = now, clock = c.clock, days = days,
+                    previousDays = previous.takeIf { history != null && !history.isAfter(c.clock.startOf(previous.first())) },
+                    sessions = sessions, gated = gated, filter = _state.value.filter,
+                    bedtime = UsageInsights.DEFAULT_BEDTIME, gateToday = gateToday,
+                    labels = sessions.map { it.pkg }.distinct().associateWith(::label),
+                )
             }
-            val selected = _state.value.selected?.takeIf { s -> apps.any { it.pkg == s } }
+            val filter = _state.value.filter.takeUnless { f -> f is AppFilter.One && snapshot.sessions.none { it.pkg == f.pkg } }
+                ?: AppFilter.Gated
             _state.update {
-                it.copy(loading = false, historySince = history, days = days, apps = apps, selected = selected,
-                    heatmap = heatmapFor(selected, days))
+                it.copy(loading = false, historySince = history, apps = apps, filter = filter, snapshot = snapshot.copy(filter = filter))
             }
         }
     }
 
-    fun select(pkg: String?) {
-        _state.update { it.copy(selected = pkg, heatmap = heatmapFor(pkg, it.days)) }
+    fun select(filter: AppFilter) {
+        _state.update { it.copy(filter = filter, snapshot = it.snapshot?.copy(filter = filter)) }
     }
-
-    private fun heatmapFor(pkg: String?, days: List<LocalDate>): Heatmap =
-        UsageAnalytics.heatmap(sessions, c.clock, days) { if (pkg == null) it !in excluded else it == pkg }
 
     private fun label(pkg: String): String = runCatching {
         val pm = app.packageManager
