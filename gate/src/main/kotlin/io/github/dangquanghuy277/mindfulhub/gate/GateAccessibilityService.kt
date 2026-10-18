@@ -41,6 +41,7 @@ class GateAccessibilityService : AccessibilityService() {
     private var ignored: Set<String> = emptySet()
     private var foreground: String? = null
     private var promptingFor: String? = null
+    private var promptEventId: Long? = null
     /** Uptime of the window event that triggered the current decision, for the N4 latency log. */
     private var eventUptime = 0L
     private var lastDetect = 0L
@@ -112,7 +113,12 @@ class GateAccessibilityService : AccessibilityService() {
         onForeground(pkg)
     }
 
-    private val confirmLeave = Runnable { if (promptingFor != null && foreground != promptingFor) closePrompt() }
+    /** Walking away from the countdown counts like "Never mind": the pause worked (G1). */
+    private val confirmLeave = Runnable {
+        if (promptingFor == null || foreground == promptingFor) return@Runnable
+        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id, "ABANDONED") } }
+        closePrompt()
+    }
 
     private fun maybeDetectShortVideo(pkg: String) {
         val profile = deps.settings.profileOf(pkg)
@@ -163,6 +169,7 @@ class GateAccessibilityService : AccessibilityService() {
         opensCache[pkg to day] = d.openNumber
         val eventId = deps.gate.insertEvent(event(pkg, now, day, "PROMPT", d.delay.toMillis(), null))
         promptingFor = pkg
+        promptEventId = eventId
         val label = labelOf(pkg)
         val neverMind = {
             scope.launch { deps.gate.setOutcome(eventId, "ABANDONED") }
@@ -184,6 +191,7 @@ class GateAccessibilityService : AccessibilityService() {
 
     private fun closePrompt() {
         promptingFor = null
+        promptEventId = null
         overlay.dismiss()
     }
 

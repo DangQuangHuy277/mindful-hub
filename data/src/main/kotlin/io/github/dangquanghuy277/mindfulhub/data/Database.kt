@@ -56,7 +56,7 @@ data class GateEventEntity(
     /** ALLOW / PROMPT / BLOCK */
     val decision: String,
     val delayMs: Long,
-    /** PROCEEDED / ABANDONED / BLOCKED, or null while the prompt is still open. */
+    /** PROCEEDED / ABANDONED ("Never mind" or left during the prompt) / BLOCKED; null while open. */
     val outcome: String? = null,
     val logicalDay: String,
 )
