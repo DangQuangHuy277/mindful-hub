@@ -47,25 +47,42 @@ class BankLaunchActivity : Activity() {
     companion object {
         private const val EXTRA_PKG = "pkg"
         private const val OFF_TIMEOUT_MS = 1_000L
+        private const val ID_PREFIX = "bank-"
 
         /**
          * Lists the installed pause apps as shortcuts on Mindful Hub's icon (long-press it, then
          * drag one to the home screen in place of the bank's own icon).
          */
         fun publishShortcuts(context: Context, settings: GateSettings) {
-            val pm = context.packageManager
-            val shortcuts = settings.pauseFor.mapNotNull { pkg ->
-                val info = runCatching { pm.getApplicationInfo(pkg, 0) }.getOrNull() ?: return@mapNotNull null
-                pkg to info
-            }.mapIndexed { rank, (pkg, info) ->
-                ShortcutInfoCompat.Builder(context, "bank-$pkg")
-                    .setShortLabel(pm.getApplicationLabel(info))
-                    .setIcon(IconCompat.createWithBitmap(pm.getApplicationIcon(info).toBitmap()))
-                    .setIntent(Intent(context, BankLaunchActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra(EXTRA_PKG, pkg))
-                    .setRank(rank)
-                    .build()
-            }
+            val shortcuts = settings.pauseFor.filter { installed(context, it) }.mapIndexed { rank, pkg -> shortcut(context, pkg, rank) }
             ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts.take(ShortcutManagerCompat.getMaxShortcutCountPerActivity(context)))
+        }
+
+        /** Banks whose shortcut is already on the home screen. */
+        fun pinned(context: Context): Set<String> =
+            ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+                .map { it.id.removePrefix(ID_PREFIX) }.toSet()
+
+        /**
+         * Asks the launcher to put [pkg]'s shortcut on the home screen (Android shows its own
+         * confirmation). Dragging it out of the long-press menu was easy to miss, and then the
+         * bank's own icon, which looks the same, kept being the one tapped.
+         */
+        fun requestPin(context: Context, pkg: String): Boolean =
+            installed(context, pkg) && ShortcutManagerCompat.requestPinShortcut(context, shortcut(context, pkg, 0), null)
+
+        private fun installed(context: Context, pkg: String) =
+            runCatching { context.packageManager.getApplicationInfo(pkg, 0) }.isSuccess
+
+        private fun shortcut(context: Context, pkg: String, rank: Int): ShortcutInfoCompat {
+            val pm = context.packageManager
+            val info = pm.getApplicationInfo(pkg, 0)
+            return ShortcutInfoCompat.Builder(context, ID_PREFIX + pkg)
+                .setShortLabel(pm.getApplicationLabel(info))
+                .setIcon(IconCompat.createWithBitmap(pm.getApplicationIcon(info).toBitmap()))
+                .setIntent(Intent(context, BankLaunchActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra(EXTRA_PKG, pkg))
+                .setRank(rank)
+                .build()
         }
     }
 }

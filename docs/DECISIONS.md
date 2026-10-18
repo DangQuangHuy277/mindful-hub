@@ -400,3 +400,20 @@ the system splash window isn't in the accessibility window list (both checked on
   Techcombank finished its task and killed its own process at 08.50. Opened through the shortcut,
   the gate was off before the process started, and Techcombank stayed open. It got as far as its
   separate USB-debugging check, which it only shows once the accessibility check has passed.
+- **Dragging the shortcut out of the long-press menu was easy to miss.** In your next test,
+  all three opens still came from Techcombank's own icon (folder, suggested apps row), and no
+  Mindful Hub shortcut was pinned. The usage screen now has a card, "Open banks with the gate
+  already off", with one "Add" button per bank you used this week. It uses Android's pin request
+  and goes away once each shortcut is on the home screen. One UI marks pinned shortcuts with
+  Mindful Hub's sprout, so they're easy to tell from the bank's own icon.
+- **Why Techcombank's own icon worked after you reinstalled it:** the race flipped. Reinstalled
+  at 01:40:50, it runs uncompiled (`verify`, before: `speed-profile`), so it starts slower. Times
+  are from its process start on a tap of its own icon:
+
+  | | Bank `onCreate` | Gate off | Result |
+  |---|---|---|---|
+  | Before reinstall (01:21) | +0.63 s | +0.92 s | killed itself at +1.08 s |
+  | After reinstall (01:45, 01:46) | +1.21 s | +0.70 s | stayed open |
+
+  Android compiles apps in the background (idle and charging), so expect the own icon to start
+  closing again. The shortcut doesn't depend on this race.

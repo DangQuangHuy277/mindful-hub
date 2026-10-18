@@ -55,8 +55,10 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.dangquanghuy277.mindfulhub.theme.CardTone
 import io.github.dangquanghuy277.mindfulhub.theme.PillButton
+import io.github.dangquanghuy277.mindfulhub.theme.PillTone
 import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
 import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
+import io.github.dangquanghuy277.mindfulhub.gate.BankLaunchActivity
 import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
 import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageView
@@ -82,6 +84,7 @@ fun UsageScreen(vm: UsageViewModel) {
             }
             // Fail loudly, stay quiet when fine (F16): only "off" earns a full card.
             if (!state.gateEnabled) GateOffCard(onTurnedOn = vm::refresh)
+            if (state.banksToPin.isNotEmpty()) BankShortcutCard(state.banksToPin)
             Text("Your phone, last 7 days", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Days start at 04:00, so late-night use counts toward the day before.",
@@ -168,6 +171,27 @@ private fun GateOffCard(onTurnedOn: () -> Unit) {
                     "adb shell pm grant ${context.packageName} android.permission.WRITE_SECURE_SETTINGS",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * Asks once per bank you use: a bank opened from its own icon checks for the gate before the gate
+ * can step aside, and closes itself (D-020). The card goes once each shortcut is on the home screen.
+ */
+@Composable
+private fun BankShortcutCard(banks: List<BankApp>) {
+    val context = LocalContext.current
+    SoftCard(tone = CardTone.Lavender) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Open banks with the gate already off", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Some banks check for the gate as they start, before it can step aside, and close themselves " +
+                    "(Techcombank does). Add their icons here to your home screen and open them from there.",
+            )
+            banks.forEach { bank ->
+                PillButton("Add ${bank.label}", onClick = { BankLaunchActivity.requestPin(context, bank.pkg) }, emoji = "🏦", tone = PillTone.Accent)
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ import io.github.dangquanghuy277.mindfulhub.core.AppProfile
 import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
 import io.github.dangquanghuy277.mindfulhub.core.UsageAnalytics
 import io.github.dangquanghuy277.mindfulhub.core.UsageInsights
+import io.github.dangquanghuy277.mindfulhub.gate.BankLaunchActivity
 import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
 import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageSnapshot
@@ -23,12 +24,16 @@ import java.time.Instant
 
 data class AppRow(val pkg: String, val label: String, val minutesPerDay: Double, val opensPerDay: Double)
 
+data class BankApp(val pkg: String, val label: String)
+
 /** Today's gate outcomes. "Abandoned" opens are the wins (G1). */
 data class GateToday(val prompts: Int = 0, val abandoned: Int = 0, val proceeded: Int = 0, val blocked: Int = 0)
 
 data class UsageUiState(
     val gateEnabled: Boolean = false,
     val gateToday: GateToday = GateToday(),
+    /** Banks you've used this week whose gate-off shortcut isn't on the home screen yet (D-020). */
+    val banksToPin: List<BankApp> = emptyList(),
     val hasPermission: Boolean = true,
     val loading: Boolean = false,
     val historySince: Instant? = null,
@@ -62,6 +67,10 @@ class UsageViewModel(private val app: Application, private val c: AppContainer) 
             runCatching { c.importer.importNew() }
 
             val now = Instant.now()
+            val usedBanks = c.usage.foregroundPackages(now.minus(Duration.ofDays(7)), now)
+            val pinned = BankLaunchActivity.pinned(app)
+            val banksToPin = c.gateSettings.pauseFor.filter { it in usedBanks && it !in pinned }.map { BankApp(it, label(it)) }
+            _state.update { it.copy(banksToPin = banksToPin) }
             val today = c.clock.dayOf(now)
             val days = (6 downTo 0).map { today.minusDays(it.toLong()) }
             val previous = (13 downTo 7).map { today.minusDays(it.toLong()) }
