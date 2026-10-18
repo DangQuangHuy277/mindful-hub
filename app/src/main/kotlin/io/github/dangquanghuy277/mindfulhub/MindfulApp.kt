@@ -22,6 +22,7 @@ import io.github.dangquanghuy277.mindfulhub.data.UsageRepository
 import io.github.dangquanghuy277.mindfulhub.data.UsageStatsImporter
 import io.github.dangquanghuy277.mindfulhub.gate.GateDeps
 import io.github.dangquanghuy277.mindfulhub.gate.GateHost
+import io.github.dangquanghuy277.mindfulhub.gate.GatePauseService
 import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
 import java.time.Duration
 import java.time.Instant
@@ -77,6 +78,8 @@ class UsageImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         val from = to.minus(Duration.ofHours(1))
         val gated = c.usage.foregroundPackages(from, to).any { c.gateSettings.profileOf(it) != AppProfile.NONE }
         val gateSilent = c.gateDao.countBetween(from.toEpochMilli(), to.toEpochMilli()) == 0
+        // Off on purpose while a banking app is in front (D-020): not a failure.
+        if (GatePauseService.pausedFor != null) return Result.success()
         if (!GateStatus.isEnabled(applicationContext) || (gated && gateSilent)) notifyGateDown()
         return Result.success()
     }

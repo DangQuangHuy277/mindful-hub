@@ -75,4 +75,12 @@ class GatePolicyTest {
             }
         }
     }
+
+    @Test
+    fun `banking apps pause the gate and are never gated`() {
+        val settings = GateSettings()
+        kotlin.test.assertTrue(settings.pausesGate("vn.com.techcombank.bb.app"))
+        kotlin.test.assertFalse(settings.pausesGate(fb))
+        assertEquals(AppProfile.NONE, settings.profileOf("vn.com.techcombank.bb.app"))
+    }
 }

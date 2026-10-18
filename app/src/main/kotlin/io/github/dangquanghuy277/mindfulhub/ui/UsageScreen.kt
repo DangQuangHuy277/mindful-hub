@@ -57,6 +57,7 @@ import io.github.dangquanghuy277.mindfulhub.theme.CardTone
 import io.github.dangquanghuy277.mindfulhub.theme.PillButton
 import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
 import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
+import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
 import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageView
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageViews
@@ -80,7 +81,7 @@ fun UsageScreen(vm: UsageViewModel) {
                 if (state.gateEnabled) GateOnPill()
             }
             // Fail loudly, stay quiet when fine (F16): only "off" earns a full card.
-            if (!state.gateEnabled) GateOffCard()
+            if (!state.gateEnabled) GateOffCard(onTurnedOn = vm::refresh)
             Text("Your phone, last 7 days", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Days start at 04:00, so late-night use counts toward the day before.",
@@ -150,13 +151,23 @@ private fun GateOnPill() {
 }
 
 @Composable
-private fun GateOffCard() {
+private fun GateOffCard(onTurnedOn: () -> Unit) {
     val context = LocalContext.current
     SoftCard(tone = CardTone.Accent) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Gate is off", style = MaterialTheme.typography.titleMedium)
+            if (GateStatus.canSwitch(context)) {
+                Text("It only checks which app is in front, and steps aside for banking apps.")
+                PillButton("Turn the gate on", onClick = { if (GateStatus.turnOn(context)) onTurnedOn() }, emoji = "🔓")
+                return@Column
+            }
             Text("Turn on \"Mindful Hub gate\" in Accessibility > Installed apps. It only checks which app is in front.")
             PillButton("Open accessibility settings", onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }, emoji = "🔓")
+            Text(
+                "The gate switches itself off for banking apps. To let it come back on by itself, run once from a computer: " +
+                    "adb shell pm grant ${context.packageName} android.permission.WRITE_SECURE_SETTINGS",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

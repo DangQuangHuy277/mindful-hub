@@ -361,3 +361,24 @@ a mascot, a calm blue sprout with closed eyes: it's the launcher icon (adaptive,
 themed version) and it sits on top of the pause screen. Buttons are soft pills with an emoji and a
 small squish when pressed. "Never mind" is the only solid blue button on the pause screen, and
 "Continue anyway" stays a plain text link, so leaving always looks more inviting than staying.
+
+## D-020: The gate steps aside for banking apps
+2026-10-19. **Decided (your request).** Techcombank and other Vietnamese banking apps refuse to
+run while a sideloaded accessibility service is on, so using the bank meant switching the gate
+off in Settings and back on afterwards.
+- **The gate switches itself off** (`disableSelf()`) when an app in `GateSettings.pauseFor` comes
+  to the front: Techcombank, Vietcombank, BIDV, MoMo, ZaloPay, VNPAY, TCBS, VCBF.
+- **A small watcher switches it back on.** `GatePauseService` (a foreground service with a "Gate
+  paused for Techcombank" notification) reads usage events once a second. The gate comes back at
+  once if you open a gated app, after 2 s on the home screen, or after 60 s in any other app (so
+  the bank's own camera or OTP hop doesn't trip its check when you return). Locking the phone
+  inside the bank keeps the pause.
+- **Switching back on needs `WRITE_SECURE_SETTINGS`**, which Android only grants over adb, once.
+  Without it the gate still steps aside, and a notification takes you to Settings to turn it on.
+  With it, the "Gate is off" card turns the gate on in one tap.
+- **Tested on the S22 (2026-10-19):** the gate switches off 26 ms after the bank's window event
+  and back on about 3 s after you reach the home screen. Facebook is prompted normally afterwards.
+- **Techcombank also refuses USB debugging** ("This device is in Android Debug Bridge mode"), even
+  with the gate fully off, so the bank side can't be tested over adb. **Unknown:** whether it
+  checks accessibility only at launch, before the gate has seen its window. If so, the first open
+  is refused and the second works.

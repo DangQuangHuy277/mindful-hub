@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Window-state changes tell which app came to the front. Content changes (throttled to one check
      per 800 ms, gated apps only) let the detectors notice Reels/Shorts. They match fixed control
-     labels; screen text is never stored. -->
+     labels; screen text is never stored. The window list (flagRetrieveInteractiveWindows) is the
+     ground truth for which app is on top, since window events arrive out of order. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagReportViewIds"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/gate_description"
     android:notificationTimeout="100" />

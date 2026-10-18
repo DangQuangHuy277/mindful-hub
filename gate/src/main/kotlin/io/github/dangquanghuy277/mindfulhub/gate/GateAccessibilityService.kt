@@ -6,6 +6,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.InputMethodManager
 import io.github.dangquanghuy277.mindfulhub.core.ActiveSession
 import io.github.dangquanghuy277.mindfulhub.core.AppProfile
@@ -17,6 +18,7 @@ import io.github.dangquanghuy277.mindfulhub.core.Screen
 import io.github.dangquanghuy277.mindfulhub.core.TimeBox
 import io.github.dangquanghuy277.mindfulhub.data.GateEventEntity
 import io.github.dangquanghuy277.mindfulhub.data.SessionEntity
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,7 +34,10 @@ import java.time.LocalDate
  * All rules live in `:core`; this class only collects events and carries out decisions.
  */
 class GateAccessibilityService : AccessibilityService() {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // An uncaught error would crash the process, and Samsung then marks the service as
+    // malfunctioning and leaves it off. Log it and keep gating instead.
+    private val crashGuard = CoroutineExceptionHandler { _, e -> Log.e(TAG, "gate coroutine failed", e) }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + crashGuard)
     private val main = Handler(Looper.getMainLooper())
     private lateinit var deps: GateDeps
     private lateinit var overlay: GateOverlay
@@ -62,9 +67,11 @@ class GateAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Time boxes must survive a service restart (Samsung battery kills, updates, or anything that
-     * re-binds accessibility services). Open sessions are reloaded from the database: still running
-     * ones get their timer back, overdue ones are closed as TIMEBOX without interrupting anything.
+     * Time boxes must survive a service restart (Samsung battery kills, updates, a bank pause, or
+     * anything that re-binds accessibility services). Open sessions are reloaded from the database:
+     * still running ones get their timer back, overdue ones are closed as TIMEBOX without
+     * interrupting anything. Then the app already in front is checked, since it sends no new
+     * window event (e.g. you went from the bank straight to Facebook while the gate was off).
      */
     private fun restoreSessions() {
         scope.launch {
@@ -79,6 +86,8 @@ class GateAccessibilityService : AccessibilityService() {
                     deps.gate.endSession(e.id, e.plannedEnd, "TIMEBOX")
                 }
             }
+            val top = topApp()
+            if (top != null && top !in ignored && foreground == null) onSwitch(top, SystemClock.uptimeMillis())
         }
     }
 
@@ -113,9 +122,18 @@ class GateAccessibilityService : AccessibilityService() {
         onForeground(pkg)
     }
 
-    /** Walking away from the countdown counts like "Never mind": the pause worked (G1). */
+    /**
+     * Walking away from the countdown counts like "Never mind": the pause worked (G1). The window
+     * list has the last word, because a late launcher event without a following app event would
+     * otherwise close the prompt while you're still in the app.
+     */
     private val confirmLeave = Runnable {
-        if (promptingFor == null || foreground == promptingFor) return@Runnable
+        val prompting = promptingFor ?: return@Runnable
+        if (foreground == prompting) return@Runnable
+        if (topApp() == prompting) {
+            foreground = prompting
+            return@Runnable
+        }
         promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id, "ABANDONED") } }
         closePrompt()
     }
@@ -147,6 +165,7 @@ class GateAccessibilityService : AccessibilityService() {
     }
 
     private fun onForeground(pkg: String) {
+        if (deps.settings.pausesGate(pkg)) return pause(pkg)
         val profile = deps.settings.profileOf(pkg)
         if (profile == AppProfile.NONE) return
         val now = Instant.now()
@@ -161,14 +180,50 @@ class GateAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Banking apps refuse to run while we're on (D-020), so the gate switches itself off and
+     * [GatePauseService] switches it back on after you leave. If the watcher can't start, the gate
+     * stays on: being stuck off with nothing to bring it back would be worse.
+     */
+    private fun pause(pkg: String) {
+        Log.i(TAG, "pausing for $pkg")
+        if (!GatePauseService.start(this, pkg)) return
+        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id, "ABANDONED") } }
+        closePrompt()
+        disableSelf()
+    }
+
+    /**
+     * The app really on top, from the window list rather than the event stream: events arrive out
+     * of order (the launcher's late event, see [onSwitch]). Null if the list is empty, e.g. locked.
+     */
+    private fun topApp(): String? {
+        val apps = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && !it.isInPictureInPictureMode }
+        val w = apps.firstOrNull { it.isActive } ?: apps.maxByOrNull { it.layer }
+        return w?.root?.packageName?.toString()
+    }
+
     private suspend fun opensToday(pkg: String, day: LocalDate): Int =
         opensCache.getOrPut(pkg to day) { deps.gate.promptsOn(pkg, day.toString()) }
 
     private suspend fun showPrompt(pkg: String, d: GateDecision.Prompt, now: Instant, day: LocalDate) {
-        if (foreground != pkg) return // user already left while we were reading the database
+        // Two window events for one open (FB, launcher, FB) start two decisions; show one prompt.
+        if (promptingFor == pkg) return
+        // Left while we read the database? Only if the window list agrees: the launcher's late
+        // event lands exactly here on the first open of the day (cache miss), and trusting it
+        // let Facebook through with no prompt at all.
+        if (foreground != pkg) {
+            if (topApp() != pkg) return
+            foreground = pkg
+        }
+        // Claim the prompt before the next suspension, so a second decision sees it.
+        promptingFor = pkg
         opensCache[pkg to day] = d.openNumber
         val eventId = deps.gate.insertEvent(event(pkg, now, day, "PROMPT", d.delay.toMillis(), null))
-        promptingFor = pkg
+        if (promptingFor != pkg) { // left while we were logging
+            deps.gate.setOutcome(eventId, "ABANDONED")
+            return
+        }
         promptEventId = eventId
         val label = labelOf(pkg)
         val neverMind = {

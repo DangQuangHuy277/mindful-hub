@@ -128,7 +128,10 @@ UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" an
 - **`uiautomator dump` suspends other accessibility services**, which re-creates the gate. Don't
   use it while testing a running session.
 - **Launchers emit a late window event** after the target app's first window. Leaving is only
-  confirmed after 600 ms away, or the prompt restarts.
+  confirmed after 600 ms away, or the prompt restarts. The event can also land while the gate is
+  still reading the database for the first open of the day; trusting it skipped the prompt
+  entirely. Decisions that would let you through now check the window list
+  (`flagRetrieveInteractiveWindows`) instead of the last event.
 - **Time boxes must be persisted**: an in-memory timer is lost on any service re-bind. Open
   sessions are reloaded from Room on connect.
 - `adb install` (streamed) dropped the USB link on this phone; `adb push` + `pm install` works.

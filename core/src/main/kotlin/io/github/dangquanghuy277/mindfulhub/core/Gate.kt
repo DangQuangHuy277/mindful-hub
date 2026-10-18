@@ -35,8 +35,16 @@ data class GateSettings(
     val maxDelay: Duration = Duration.ofSeconds(60),
     /** "Just bored" adds this wait before "continue anyway" (E2). */
     val boredExtraDelay: Duration = Duration.ofSeconds(10),
+    /**
+     * Apps that refuse to run while a sideloaded accessibility service is on (D-020). The gate
+     * switches itself off while one of them is in front and back on once you've left.
+     */
+    val pauseFor: Set<String> = DEFAULT_PAUSE_FOR,
 ) {
     fun profileOf(pkg: String): AppProfile = profiles[pkg] ?: AppProfile.NONE
+
+    /** A pause app is never gated, even if it also has a profile: the pause wins. */
+    fun pausesGate(pkg: String): Boolean = pkg in pauseFor
 
     companion object {
         val DEFAULT_PROFILES = mapOf(
@@ -47,6 +55,18 @@ data class GateSettings(
             "com.google.android.youtube" to AppProfile.LIGHT,
             "com.hhgame.mlbbvn" to AppProfile.GAME, // Mobile Legends (VN)
             "com.facebook.orca" to AppProfile.MESSAGING,
+        )
+
+        /** Banking and payment apps installed on the S22 (checked with `pm list packages`, 2026-10-19). */
+        val DEFAULT_PAUSE_FOR = setOf(
+            "vn.com.techcombank.bb.app", // Techcombank
+            "com.VCB", // Vietcombank
+            "com.vnpay.bidv", // BIDV SmartBanking
+            "com.mservice.momotransfer", // MoMo
+            "vn.com.vng.zalopay", // ZaloPay
+            "vnpay.smartacccount", // VNPAY
+            "com.fss.tcbs.mobiletrading", // TCBS
+            "vn.com.fss.vcbf", // VCBF
         )
     }
 }
