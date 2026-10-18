@@ -33,7 +33,7 @@ on decisions. That split is what makes a later move to KMP (A4) a build change, 
 ┌─ service: GateAccessibilityService ×1 (:gate) ───────────────────────────────────────┐
 │ ▼ config: packageNames = target apps only (privacy + battery)                        │
 │ ScreenClassifier(pkg, root node)  → APP_OPEN | REELS | SHORTS | YT_HOME | OTHER      │
-│   · reads view IDs and class names only; **never stores screen text** (N1)           │
+│   · matches fixed control labels (FB strips view IDs); **never stores screen text** (N1)│
 │ ▼                                                                                    │
 │ ╔═ STATE 1: ActiveSession (in memory + mirrored to Room) ═══════════════════════╗    │
 │ ║ pkg, intent, timebox end, started-at. Absorbs app switches: leaving and        ║    │
@@ -103,9 +103,11 @@ gate events come from our service. A gap shows up within an hour. **Metric to wa
 `health_gap_minutes` per day. It should be 0.
 
 ### Reading the screen is a privacy liability, so minimize it
-The service config restricts `packageNames` to the target apps. The classifier reads view IDs
-and class names (e.g. a Reels viewer's view ID), never text. Nothing from the screen is stored
-except the classification label.
+Facebook strips its view IDs (they read `(name removed)`), so detectors match the accessibility
+labels of fixed *controls* ("Reels, tab 2 of 6", "Reels tab details"), never post content. Only
+gated apps are inspected, at most once per 800 ms. Nothing from the screen is stored except the
+classification label. (The service receives window events from all apps, so it can tell when you
+*leave* a gated app; it reads only their package name.)
 
 ### One service, per-app detectors
 There's only one `GateAccessibilityService`. Each target app gets its own small `ScreenDetector`
@@ -113,11 +115,23 @@ There's only one `GateAccessibilityService`. Each target app gets its own small 
 UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" and logs
 `detector_miss` so the review can flag it.
 
-## Things the first spike must verify (unknowns)
-1. Overlay window type: does `TYPE_ACCESSIBILITY_OVERLAY` from the service work on One UI 7 without "Display over other apps"? (That permission is restricted for sideloaded apps on Android 15.)
-2. Reels detection in the FB app: which view IDs identify it? (Learn from Shorts-Blocker and AwayDoomscrollin', after checking their licences.)
-3. How far back `UsageStatsManager.queryEvents` goes on this phone. That decides how much baseline we get on day 1.
-4. Gate latency from tap to overlay. Target ≤300 ms (N4).
+## Spike results (Galaxy S22 Ultra, One UI 7, 2026-10-18)
+1. ✅ `TYPE_ACCESSIBILITY_OVERLAY` works without "Display over other apps".
+2. ✅ FB Reels **tab**: no view IDs; detected by the selected "Reels, tab N of M" label or the
+   "Reels tab details" button. Back does *not* leave a tab, so the block taps FB's "Home, tab 1 of
+   N" instead (otherwise it loops). Still to check: Reels opened from a feed post; Instagram;
+   YouTube Shorts.
+3. ✅ `queryEvents` returned history back to 9 Oct: **~9 days** on day 1.
+4. ✅ Prompt latency **136–270 ms** after the window event (N4).
+
+## Gotchas found on the device
+- **`uiautomator dump` suspends other accessibility services**, which re-creates the gate. Don't
+  use it while testing a running session.
+- **Launchers emit a late window event** after the target app's first window. Leaving is only
+  confirmed after 600 ms away, or the prompt restarts.
+- **Time boxes must be persisted**: an in-memory timer is lost on any service re-bind. Open
+  sessions are reloaded from Room on connect.
+- `adb install` (streamed) dropped the USB link on this phone; `adb push` + `pm install` works.
 
 ## Build order (from FEATURES-V1.md)
 1. **Skeleton + logger (F09)**: modules, Room, UsageStatsImporter, hour × day heatmap. This starts the baseline week.

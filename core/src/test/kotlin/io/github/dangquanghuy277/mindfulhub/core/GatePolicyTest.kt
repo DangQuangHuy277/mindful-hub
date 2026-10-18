@@ -65,4 +65,14 @@ class GatePolicyTest {
         val boxes = GatePolicy.timeBoxesFor(AppProfile.GAME)
         assertEquals(listOf("1 match", "2 matches", "3 matches"), boxes.map { it.label })
     }
+
+    @Test
+    fun `the open-count line never appears on the first two opens`() {
+        (1..2).forEach { n ->
+            (1..365).forEach { d ->
+                val line = PromptCopy.line(n, java.time.LocalDate.ofYearDay(2026, d))
+                kotlin.test.assertFalse(line.contains("times today"), "open $n day $d: $line")
+            }
+        }
+    }
 }

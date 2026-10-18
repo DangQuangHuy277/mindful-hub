@@ -3,6 +3,8 @@ package io.github.dangquanghuy277.mindfulhub.gate
 import android.accessibilityservice.AccessibilityService
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import io.github.dangquanghuy277.mindfulhub.core.ActiveSession
@@ -39,6 +41,10 @@ class GateAccessibilityService : AccessibilityService() {
     private var ignored: Set<String> = emptySet()
     private var foreground: String? = null
     private var promptingFor: String? = null
+    /** Uptime of the window event that triggered the current decision, for the N4 latency log. */
+    private var eventUptime = 0L
+    private var lastDetect = 0L
+    private var suppressDetectUntil = 0L
 
     // State 1 in ARCHITECTURE.md. In memory only for now: a restart of the service forgets
     // running time boxes, which errs on the side of prompting again.
@@ -51,17 +57,87 @@ class GateAccessibilityService : AccessibilityService() {
         overlay = GateOverlay(this)
         val imes = getSystemService(InputMethodManager::class.java).enabledInputMethodList.map { it.packageName }
         ignored = setOf(packageName, "android", "com.android.systemui") + imes
+        restoreSessions()
+    }
+
+    /**
+     * Time boxes must survive a service restart (Samsung battery kills, updates, or anything that
+     * re-binds accessibility services). Open sessions are reloaded from the database: still running
+     * ones get their timer back, overdue ones are closed as TIMEBOX without interrupting anything.
+     */
+    private fun restoreSessions() {
+        scope.launch {
+            val now = Instant.now()
+            for (e in deps.gate.openSessions()) {
+                val session = ActiveSession(e.pkg, Purpose.valueOf(e.purpose), Instant.ofEpochMilli(e.start), Instant.ofEpochMilli(e.plannedEnd))
+                if (session.end.isAfter(now)) {
+                    sessions[e.pkg] = session
+                    sessionIds[e.pkg] = e.id
+                    main.postDelayed({ onTimeBoxEnd(session) }, Duration.between(now, session.end).toMillis())
+                } else {
+                    deps.gate.endSession(e.id, e.plannedEnd, "TIMEBOX")
+                }
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
-        if (pkg in ignored || pkg == foreground) return
-        foreground = pkg
+        if (pkg in ignored) return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != foreground) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "switch: $pkg (fg=$foreground, prompting=$promptingFor)")
+            onSwitch(pkg, event.eventTime)
+        }
+        if (pkg == foreground && promptingFor == null) maybeDetectShortVideo(pkg)
+    }
 
-        // Switching away while the prompt is up counts as leaving.
-        promptingFor?.let { if (it != pkg) closePrompt() }
+    /**
+     * Launchers and system animations can emit a window event *after* the target app's first
+     * window. Leaving is therefore confirmed only if the user stays away for [LEAVE_CONFIRM_MS];
+     * otherwise the same prompt simply stays up (seen on One UI 7: the prompt restarted).
+     */
+    private fun onSwitch(pkg: String, eventTime: Long) {
+        val prompting = promptingFor
+        if (prompting != null) {
+            if (pkg == prompting) {
+                main.removeCallbacks(confirmLeave)
+                foreground = pkg
+                return
+            }
+            main.removeCallbacks(confirmLeave)
+            main.postDelayed(confirmLeave, LEAVE_CONFIRM_MS)
+        }
+        foreground = pkg
+        eventUptime = eventTime
         onForeground(pkg)
+    }
+
+    private val confirmLeave = Runnable { if (promptingFor != null && foreground != promptingFor) closePrompt() }
+
+    private fun maybeDetectShortVideo(pkg: String) {
+        val profile = deps.settings.profileOf(pkg)
+        if (profile != AppProfile.STRICT && profile != AppProfile.LIGHT) return
+        val now = SystemClock.uptimeMillis()
+        if (now - lastDetect < DETECT_INTERVAL_MS || now < suppressDetectUntil || overlay.isShowing) return
+        lastDetect = now
+        val d = ScreenDetectors.detect(pkg, rootInActiveWindow)
+        if (d.screen == Screen.SHORT_VIDEO) block(pkg, d.escape)
+    }
+
+    /** Leaves the short-video screen: tap the app's own escape control if known, else Back. */
+    private fun block(pkg: String, escape: android.view.accessibility.AccessibilityNodeInfo? = null) {
+        suppressDetectUntil = SystemClock.uptimeMillis() + 2_000
+        val now = Instant.now()
+        scope.launch {
+            deps.gate.insertEvent(event(pkg, now, deps.clock.dayOf(now), "BLOCK", 0, "BLOCKED", Screen.SHORT_VIDEO))
+        }
+        val escaped = escape?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true
+        if (!escaped) performGlobalAction(GLOBAL_ACTION_BACK)
+        val dismiss = {
+            overlay.dismiss()
+            suppressDetectUntil = SystemClock.uptimeMillis() + 1_000
+        }
+        overlay.show(onBack = dismiss) { GateBlocked(onOk = dismiss) }
     }
 
     private fun onForeground(pkg: String) {
@@ -74,11 +150,7 @@ class GateAccessibilityService : AccessibilityService() {
             when (val d = GatePolicy.decide(pkg, Screen.APP, now, sessions, opens, deps.settings)) {
                 GateDecision.Allow -> Unit
                 is GateDecision.Prompt -> showPrompt(pkg, d, now, day)
-                is GateDecision.Block -> {
-                    deps.gate.insertEvent(event(pkg, now, day, "BLOCK", 0, "BLOCKED"))
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    overlay.show(onBack = overlay::dismiss) { GateBlocked(onOk = overlay::dismiss) }
-                }
+                is GateDecision.Block -> block(pkg)
             }
         }
     }
@@ -107,6 +179,7 @@ class GateAccessibilityService : AccessibilityService() {
                 onProceed = { purpose, box -> startSession(pkg, eventId, purpose, box) },
             )
         }
+        Log.i(TAG, "prompt for $pkg shown ${SystemClock.uptimeMillis() - eventUptime} ms after the window event (N4 target ≤300)")
     }
 
     private fun closePrompt() {
@@ -151,9 +224,12 @@ class GateAccessibilityService : AccessibilityService() {
         overlay.show(onBack = { rateAndLeave(0) }) { GateStop(label, minutes, onRate = { rateAndLeave(it) }) }
     }
 
-    private fun event(pkg: String, now: Instant, day: LocalDate, decision: String, delayMs: Long, outcome: String?) =
+    private fun event(
+        pkg: String, now: Instant, day: LocalDate, decision: String, delayMs: Long, outcome: String?,
+        screen: Screen = Screen.APP,
+    ) =
         GateEventEntity(
-            ts = now.toEpochMilli(), pkg = pkg, screen = Screen.APP.name, decision = decision,
+            ts = now.toEpochMilli(), pkg = pkg, screen = screen.name, decision = decision,
             delayMs = delayMs, outcome = outcome, logicalDay = day.toString(),
         )
 
@@ -163,9 +239,17 @@ class GateAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
+    private companion object {
+        /** `adb shell setprop log.tag.MindfulGate DEBUG` turns on per-switch logging (off by default). */
+        const val TAG = "MindfulGate"
+        const val LEAVE_CONFIRM_MS = 600L
+        const val DETECT_INTERVAL_MS = 800L
+    }
+
     override fun onDestroy() {
         overlay.dismiss()
         main.removeCallbacksAndMessages(null)
+        main.removeCallbacks(confirmLeave)
         scope.cancel()
         super.onDestroy()
     }

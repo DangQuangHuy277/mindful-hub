@@ -39,8 +39,6 @@ class GateOverlay(private val service: AccessibilityService) {
         dismiss()
         val o = OverlayOwner().also { it.start() }
         val compose = ComposeView(service).apply {
-            setViewTreeLifecycleOwner(o)
-            setViewTreeSavedStateRegistryOwner(o)
             setContent {
                 MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                     content()
@@ -57,6 +55,9 @@ class GateOverlay(private val service: AccessibilityService) {
                 return super.dispatchKeyEvent(event)
             }
         }
+        // Compose resolves these owners from the window's *root* view, so they go on the frame.
+        frame.setViewTreeLifecycleOwner(o)
+        frame.setViewTreeSavedStateRegistryOwner(o)
         frame.addView(compose)
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,

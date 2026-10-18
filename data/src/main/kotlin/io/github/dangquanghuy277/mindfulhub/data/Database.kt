@@ -100,6 +100,10 @@ interface GateDao {
     @Query("UPDATE session SET `end` = :end, endedBy = :endedBy WHERE id = :id AND `end` IS NULL")
     suspend fun endSession(id: Long, end: Long, endedBy: String)
 
+    /** Sessions not yet closed; reloaded when the gate service (re)connects. */
+    @Query("SELECT * FROM session WHERE `end` IS NULL")
+    suspend fun openSessions(): List<SessionEntity>
+
     @Query("UPDATE session SET rating = :rating WHERE id = :id")
     suspend fun rate(id: Long, rating: Int)
 }

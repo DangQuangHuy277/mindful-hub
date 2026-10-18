@@ -137,8 +137,10 @@ object PromptCopy {
     )
 
     fun line(openNumber: Int, day: LocalDate): String {
-        val i = Math.floorMod(openNumber + day.dayOfYear, lines.size)
-        return lines[i].let { if (it.contains("%d")) it.format(openNumber - 1) else it }
+        // The count line only makes sense once there is a count worth mentioning.
+        val pool = if (openNumber >= 3) lines else lines.filterNot { it.contains("%d") }
+        val i = Math.floorMod(openNumber + day.dayOfYear, pool.size)
+        return pool[i].let { if (it.contains("%d")) it.format(openNumber - 1) else it }
     }
 }
 
