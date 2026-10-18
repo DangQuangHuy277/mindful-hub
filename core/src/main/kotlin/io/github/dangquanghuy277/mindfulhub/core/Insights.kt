@@ -29,8 +29,8 @@ sealed interface Insight {
 
     data class PeakHour(val hour: Int, val minutesPerDay: Double) : Insight
 
-    /** Today's gate pauses and how many ended without going in. */
-    data class PauseWins(val prompts: Int, val abandoned: Int) : Insight
+    /** Today's gate pauses, how many ended without going in, and short videos blocked. */
+    data class PauseWins(val prompts: Int, val abandoned: Int, val blocked: Int = 0) : Insight
 }
 
 class InsightInput(
@@ -46,6 +46,7 @@ class InsightInput(
     val now: Instant,
     val prompts: Int = 0,
     val abandoned: Int = 0,
+    val blocked: Int = 0,
 )
 
 object UsageInsights {
@@ -88,7 +89,7 @@ object UsageInsights {
         weekChange(input, included)?.let(::add)
         longestSession(input, included)?.let(::add)
         peakHour(input, included)?.let(::add)
-        if (input.prompts > 0) add(Insight.PauseWins(input.prompts, input.abandoned))
+        if (input.prompts > 0 || input.blocked > 0) add(Insight.PauseWins(input.prompts, input.abandoned, input.blocked))
     }
 
     private fun afterBedtime(input: InsightInput, included: List<AppSession>): Insight.AfterBedtime? {

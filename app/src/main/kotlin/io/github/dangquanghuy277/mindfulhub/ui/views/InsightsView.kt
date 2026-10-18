@@ -75,7 +75,7 @@ private class InsightsModel(
             val included = d.sessions.filter { d.includes(it.pkg) }
             val input = InsightInput(
                 d.sessions, d::includes, d.clock, d.days, d.previousDays, d.bedtime, d.now,
-                d.gateToday.prompts, d.gateToday.abandoned,
+                d.gateToday.prompts, d.gateToday.abandoned, d.gateToday.blocked,
             )
             val top = UsageAnalytics.totals(included, d.clock.startOf(d.days.first()), d.now).take(MAX_APPS).map { it.pkg }
             val series = top + if (included.any { it.pkg !in top }) listOf(AppPalette.OTHER) else emptyList()
@@ -157,12 +157,20 @@ private fun insightText(insight: Insight, data: UsageSnapshot): String {
         is Insight.PeakHour ->
             "Your heaviest hour is %02d:00–%02d:00, with ${formatMinutes(insight.minutesPerDay)} a day on average."
                 .format(insight.hour, (insight.hour + 1) % 24)
-        is Insight.PauseWins ->
-            if (insight.abandoned > 0) {
-                "Today, ${insight.abandoned} of ${insight.prompts} pauses ended without going in. Each one is a win."
-            } else {
-                "Today: ${insight.prompts} pauses so far. Closing the app at a pause counts as a win."
+        is Insight.PauseWins -> {
+            // The gate's daily tally lives here now; the status pill at the top only says on/off.
+            val pauses = when {
+                insight.prompts == 0 -> "Today: no pauses yet."
+                insight.abandoned > 0 -> "Today, ${insight.abandoned} of ${insight.prompts} pauses ended without going in. Each one is a win."
+                else -> "Today: ${insight.prompts} pauses so far. Closing the app at a pause counts as a win."
             }
+            val blocked = when (insight.blocked) {
+                0 -> ""
+                1 -> " 1 short video blocked."
+                else -> " ${insight.blocked} short videos blocked."
+            }
+            pauses + blocked
+        }
     }
 }
 

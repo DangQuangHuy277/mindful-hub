@@ -1,9 +1,5 @@
 package io.github.dangquanghuy277.mindfulhub.ui
 
-import java.time.LocalTime
-import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
-import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
-import io.github.dangquanghuy277.mindfulhub.theme.CardTone
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -26,9 +22,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -48,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,9 +54,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.dangquanghuy277.mindfulhub.theme.CardTone
+import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
+import io.github.dangquanghuy277.mindfulhub.theme.isDarkTheme
 import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageView
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageViews
+import java.time.LocalTime
 import java.time.ZoneId
 
 @Composable
@@ -72,8 +75,12 @@ fun UsageScreen(vm: UsageViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             NotificationPermission()
-            Text(greeting(LocalTime.now()), style = MaterialTheme.typography.headlineMedium)
-            GateCard(state.gateEnabled, state.gateToday)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(greeting(LocalTime.now()), Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
+                if (state.gateEnabled) GateOnPill()
+            }
+            // Fail loudly, stay quiet when fine (F16): only "off" earns a full card.
+            if (!state.gateEnabled) GateOffCard()
             Text("Your phone, last 7 days", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Days start at 04:00, so late-night use counts toward the day before.",
@@ -127,22 +134,30 @@ private fun NotificationPermission() {
     }
 }
 
+/** Gate status when all is well: a glance, not a card. Today's numbers are in the findings. */
 @Composable
-private fun GateCard(enabled: Boolean, today: GateToday) {
+private fun GateOnPill() {
+    val c = MaterialTheme.colorScheme
+    Row(
+        Modifier.background(c.tertiaryContainer, CircleShape).padding(horizontal = 12.dp, vertical = 6.dp)
+            .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(8.dp).background(c.tertiary, CircleShape))
+        Spacer(Modifier.width(6.dp))
+        Text("Gate on", style = MaterialTheme.typography.labelLarge, color = c.onTertiaryContainer)
+    }
+}
+
+@Composable
+private fun GateOffCard() {
     val context = LocalContext.current
     SoftCard(tone = CardTone.Peach) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(if (enabled) "🌿 Gate is on" else "Gate is off", style = MaterialTheme.typography.titleMedium)
-            if (enabled) {
-                Text(
-                    "Today: ${today.prompts} pauses · ${today.abandoned} closed (wins) · ${today.proceeded} went in · ${today.blocked} short videos blocked",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                Text("Turn on \"Mindful Hub gate\" in Accessibility > Installed apps. It only checks which app is in front.")
-                Button(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
-                    Text("Open accessibility settings")
-                }
+            Text("Gate is off", style = MaterialTheme.typography.titleMedium)
+            Text("Turn on \"Mindful Hub gate\" in Accessibility > Installed apps. It only checks which app is in front.")
+            Button(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
+                Text("Open accessibility settings")
             }
         }
     }

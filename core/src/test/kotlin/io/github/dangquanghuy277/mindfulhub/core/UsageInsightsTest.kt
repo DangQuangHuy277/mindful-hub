@@ -20,8 +20,8 @@ class UsageInsightsTest {
 
     private fun input(
         sessions: List<AppSession>, now: java.time.Instant = at(18, 14, 0), previous: List<LocalDate>? = null,
-        prompts: Int = 0, abandoned: Int = 0,
-    ) = InsightInput(sessions, { it == "fb" || it == "x" }, clock, week, previous, bedtime, now, prompts, abandoned)
+        prompts: Int = 0, abandoned: Int = 0, blocked: Int = 0,
+    ) = InsightInput(sessions, { it == "fb" || it == "x" }, clock, week, previous, bedtime, now, prompts, abandoned, blocked)
 
     private inline fun <reified T : Insight> List<Insight>.find(): T? = filterIsInstance<T>().firstOrNull()
 
@@ -106,5 +106,6 @@ class UsageInsightsTest {
         val s = listOf(AppSession("fb", at(13, 1, 0), at(13, 2, 0)))
         assertIs<Insight.PauseWins>(UsageInsights.insights(input(s, prompts = 4, abandoned = 2)).last())
         assertTrue(UsageInsights.insights(input(s)).none { it is Insight.PauseWins })
+        assertEquals(Insight.PauseWins(0, 0, 3), UsageInsights.insights(input(s, blocked = 3)).last())
     }
 }
