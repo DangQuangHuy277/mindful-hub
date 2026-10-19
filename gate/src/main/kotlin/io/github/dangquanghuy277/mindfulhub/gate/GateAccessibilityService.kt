@@ -34,6 +34,11 @@ import io.github.dangquanghuy277.mindfulhub.data.PostcardEntity
 import io.github.dangquanghuy277.mindfulhub.data.SessionEntity
 import io.github.dangquanghuy277.mindfulhub.data.SettingEntity
 import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -65,7 +70,8 @@ class GateAccessibilityService : AccessibilityService() {
     private var ignored: Set<String> = emptySet()
     private var foreground: String? = null
     private var promptingFor: String? = null
-    private var promptEventId: Long? = null
+    /** The prompt's log row. Written after the prompt is up (N4), so handlers await it. */
+    private var promptEventId: Deferred<Long>? = null
     /** Uptime of the window event that triggered the current decision, for the N4 latency log. */
     private var eventUptime = 0L
     private var lastDetect = 0L
@@ -88,6 +94,7 @@ class GateAccessibilityService : AccessibilityService() {
     private val leftAt = mutableMapOf<String, Instant>()
     /** Feeds minutes used today and when they were read (F29). A fresh value skips the wait. */
     private var feedCache: Pair<Instant, Double>? = null
+    private var feedRefresh: Job? = null
 
     override fun onServiceConnected() {
         deps = (application as GateHost).gateDeps
@@ -102,6 +109,7 @@ class GateAccessibilityService : AccessibilityService() {
                 rowsLoaded = true
             }
         }
+        refreshFeed() // so the first decision after (re)connecting doesn't wait for it (N4)
         restoreSessions()
         connected = this
     }
@@ -163,6 +171,7 @@ class GateAccessibilityService : AccessibilityService() {
         foreground = pkg
         eventUptime = eventTime
         if (previous != null && prompting == null) noteLeaving(previous, pkg)
+        if (previous != null && deps.settings.profileOf(previous) == AppProfile.STRICT) refreshFeed()
         onForeground(pkg)
     }
 
@@ -198,7 +207,7 @@ class GateAccessibilityService : AccessibilityService() {
             foreground = prompting
             return@Runnable
         }
-        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id, "ABANDONED") } }
+        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id.await(), "ABANDONED") } }
         closePrompt()
     }
 
@@ -262,30 +271,42 @@ class GateAccessibilityService : AccessibilityService() {
         val atNight = night.phase != NightPhase.DAY
         val windDown = s.on(Feature.WIND_DOWN)
         val nightFrom = night.bed.minus(Duration.ofMinutes(s.windDownMinutes.toLong()))
-        val bedScrollLeft = windDown && atNight && s.allowBedScroll &&
-            deps.gate.bedScrollsBetween(nightFrom.toEpochMilli(), night.wake.toEpochMilli()) == 0
-        val postcardDue = s.on(Feature.POSTCARD) && atNight && deps.postcards.forNight(night.night.toString()) == null
+        // Independent reads, so they run side by side rather than one after another (N4).
+        val bedScrollLeft = scope.async {
+            windDown && atNight && s.allowBedScroll &&
+                deps.gate.bedScrollsBetween(nightFrom.toEpochMilli(), night.wake.toEpochMilli()) == 0
+        }
+        val postcardDue = scope.async { s.on(Feature.POSTCARD) && atNight && deps.postcards.forNight(night.night.toString()) == null }
         val feedLeft = if (s.on(Feature.FEED_BUDGET) && profile == AppProfile.STRICT) {
             FeedBudget.left(s.feedBudgetMinutes, feedMinutes(now) ?: 0.0)
         } else {
             null
         }
-        return GateRules(night.phase, windDown, bedScrollLeft, postcardDue, feedLeft)
+        return GateRules(night.phase, windDown, bedScrollLeft.await(), postcardDue.await(), feedLeft)
     }
 
     /**
-     * F29: minutes used today. Reading usage history can take a while, and the prompt has a 300 ms
-     * target (N4), so a value under [FEED_FRESH] old is used at once and refreshed in the
-     * background; otherwise it waits at most [BUDGET_TIMEOUT_MS] and falls back to the old value.
+     * F29: minutes used today. Reading usage history takes 100s of ms, and the prompt has a 300 ms
+     * target (N4). Feeds time only grows while a STRICT app is in front, and leaving one refreshes
+     * the value ([onSwitch]), so today's value is current whatever its age: it's used at once and
+     * refreshed in the background. Only without one (first open of the day, after a restart) the
+     * decision waits, at most [BUDGET_TIMEOUT_MS], then counts nothing used.
      */
     private suspend fun feedMinutes(now: Instant): Double? {
         val cached = feedCache?.takeIf { (at, _) -> deps.clock.dayOf(at) == deps.clock.dayOf(now) }
-        suspend fun read(): Double? = runCatching { deps.feedMinutesToday(now) }.getOrNull()?.also { feedCache = now to it }
-        if (cached != null && Duration.between(cached.first, now) < FEED_FRESH) {
-            scope.launch { read() }
-            return cached.second
-        }
-        return withTimeoutOrNull(BUDGET_TIMEOUT_MS) { read() } ?: cached?.second
+        val job = refreshFeed()
+        if (cached != null) return cached.second
+        return withTimeoutOrNull(BUDGET_TIMEOUT_MS) { job.join(); feedCache?.second }
+    }
+
+    /** Reads feeds minutes off the main thread; one read at a time (later calls share it). */
+    private fun refreshFeed(): Job {
+        feedRefresh?.takeIf { it.isActive }?.let { return it }
+        return scope.launch {
+            val now = Instant.now()
+            withContext(Dispatchers.Default) { runCatching { deps.feedMinutesToday(now) }.getOrNull() }
+                ?.let { feedCache = now to it }
+        }.also { feedRefresh = it }
     }
 
     /** F03 wind-down or F29 budget: the app rests, and the screen says why and what's possible. */
@@ -296,9 +317,10 @@ class GateAccessibilityService : AccessibilityService() {
             foreground = pkg
         }
         promptingFor = pkg
-        val eventId = deps.gate.insertEvent(event(pkg, now, day, "LOCK", 0, "BLOCKED", Screen.APP).copy(screen = d.reason.name))
-        if (promptingFor != pkg) return
         promptEventId = null
+        // Logged after the screen is up (N4); only the bed-scroll button needs the row.
+        val eventId = CompletableDeferred<Long>()
+        scope.launch { eventId.complete(deps.gate.insertEvent(event(pkg, now, day, "LOCK", 0, "BLOCKED", Screen.APP).copy(screen = d.reason.name))) }
         val label = labelOf(pkg)
         val close: () -> Unit = {
             closePrompt()
@@ -329,9 +351,9 @@ class GateAccessibilityService : AccessibilityService() {
      * F26: do the thing instead. It's logged as a good thing right away (you can delete it at
      * home), the open counts as abandoned (a win, G1), and the app closes.
      */
-    private fun doInstead(pkg: String, eventId: Long?, item: InsteadItem) {
+    private fun doInstead(pkg: String, eventId: Deferred<Long>?, item: InsteadItem) {
         scope.launch {
-            eventId?.let { deps.gate.setOutcome(it, "ABANDONED") }
+            eventId?.let { deps.gate.setOutcome(it.await(), "ABANDONED") }
             deps.goodThings.insert(
                 GoodThingEntity(ts = System.currentTimeMillis(), category = item.category.name, minutes = item.minutes, note = item.text, source = "gate"),
             )
@@ -371,7 +393,7 @@ class GateAccessibilityService : AccessibilityService() {
     private fun pause(pkg: String, launching: Boolean = false): Boolean {
         Log.i(TAG, "pausing for $pkg${if (launching) " (before launch)" else ""}")
         if (!GatePauseService.start(this, pkg, launching)) return false
-        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id, "ABANDONED") } }
+        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id.await(), "ABANDONED") } }
         closePrompt()
         disableSelf()
         return true
@@ -403,15 +425,14 @@ class GateAccessibilityService : AccessibilityService() {
         // Claim the prompt before the next suspension, so a second decision sees it.
         promptingFor = pkg
         opensCache[pkg to day] = d.openNumber
-        val eventId = deps.gate.insertEvent(event(pkg, now, day, "PROMPT", d.delay.toMillis(), null))
-        if (promptingFor != pkg) { // left while we were logging
-            deps.gate.setOutcome(eventId, "ABANDONED")
-            return
-        }
+        // Logged after the prompt is up: the write is ~100 ms that N4 can't spare. Whatever closes
+        // the prompt awaits the row before setting its outcome.
+        val eventId = CompletableDeferred<Long>()
         promptEventId = eventId
+        scope.launch { eventId.complete(deps.gate.insertEvent(event(pkg, now, day, "PROMPT", d.delay.toMillis(), null))) }
         val label = labelOf(pkg)
         val neverMind = {
-            scope.launch { deps.gate.setOutcome(eventId, "ABANDONED") }
+            scope.launch { deps.gate.setOutcome(eventId.await(), "ABANDONED") }
             closePrompt()
             performGlobalAction(GLOBAL_ACTION_HOME)
         }
@@ -438,14 +459,14 @@ class GateAccessibilityService : AccessibilityService() {
         overlay.dismiss()
     }
 
-    private fun startSession(pkg: String, eventId: Long, purpose: Purpose, box: TimeBox, logOutcome: Boolean = true) {
+    private fun startSession(pkg: String, eventId: Deferred<Long>, purpose: Purpose, box: TimeBox, logOutcome: Boolean = true) {
         val start = Instant.now()
         val session = ActiveSession(pkg, purpose, start, start.plus(box.length))
         sessions[pkg] = session
         leftAt.remove(pkg)
         closePrompt()
         scope.launch {
-            if (logOutcome) deps.gate.setOutcome(eventId, "PROCEEDED")
+            if (logOutcome) deps.gate.setOutcome(eventId.await(), "PROCEEDED")
             sessionIds[pkg] = deps.gate.insertSession(
                 SessionEntity(
                     pkg = pkg, purpose = purpose.name, timeBoxMin = box.length.toMinutes().toInt(),
@@ -513,7 +534,6 @@ class GateAccessibilityService : AccessibilityService() {
         private const val DETECT_INTERVAL_MS = 800L
         /** The budget check must not delay the prompt past N4 (≤300 ms); it falls back to the last value. */
         private const val BUDGET_TIMEOUT_MS = 250L
-        private val FEED_FRESH: Duration = Duration.ofMinutes(2)
         private val HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
         /** The connected gate, if any. Same process as the app, so the bank shortcut can reach it. */

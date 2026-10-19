@@ -125,6 +125,16 @@ UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" an
    YouTube Shorts.
 3. ✅ `queryEvents` returned history back to 9 Oct: **~9 days** on day 1.
 4. ✅ Prompt latency **136–270 ms** after the window event (N4).
+5. ⚠️ After D-021 the prompt came **650–700 ms** after the event (2026-10-19). Three waits had
+   joined the critical path: the F29 feeds read (usage import + sessionizing, run on the main
+   thread so its 250 ms timeout couldn't cut it, and its 2-minute cache nearly always missed),
+   the prompt's `insertEvent` awaited before `overlay.show`, and the night reads one after another.
+   Fix: feeds minutes are refreshed off the main thread whenever you leave a STRICT app, and a
+   decision uses today's value at once (it only waits, ≤250 ms, when there is none); the prompt
+   and lock screens are shown first and logged after, with their handlers awaiting the row; the
+   bed-scroll and postcard reads run in parallel, and the feeds value is read when the service
+   connects. Decisions are unchanged. Measured after the fix: **137–223 ms**, including the first
+   open after a reinstall (`adb logcat -s MindfulGate:I`).
 
 ## Gotchas found on the device
 - **`uiautomator dump` suspends other accessibility services**, which re-creates the gate. Don't
@@ -180,7 +190,7 @@ up. A slip day gets "welcome back" and one next step. Every Instead line says wh
 
 **Unverified on the phone** (built and unit-tested, not yet tried on the S22): typing in the overlay
 (the postcard field), the Clock app's timer from the gate, the toast after leaving early, plan
-reminders, and the 250 ms budget read inside the prompt's latency budget (N4).
+reminders.
 
 ## Usage views (D-018)
 `:app` `ui/views/UsageView.kt` holds the registry. Each view gets one `UsageSnapshot`: sessions for
