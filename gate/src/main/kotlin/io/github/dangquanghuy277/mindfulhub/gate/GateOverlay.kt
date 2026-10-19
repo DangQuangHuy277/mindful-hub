@@ -36,8 +36,7 @@ class GateOverlay(
 ) {
     private val wm = service.getSystemService(WindowManager::class.java)
     private val main = Handler(Looper.getMainLooper())
-    // Let go a moment after the screen goes, so "never mind" is already home and the video
-    // underneath doesn't pick up again on its way out. A screen shown in between keeps it.
+    // After continuing, let go a moment after the screen goes; a screen shown in between keeps it.
     private val release = Runnable { quiet.release() }
     private var root: View? = null
     private var owner: OverlayOwner? = null
@@ -85,12 +84,22 @@ class GateOverlay(
         owner = o
     }
 
-    fun dismiss() {
+    /**
+     * [leaving]: the gate is sending you out of the app (home, or you already left), so the
+     * paused sound is stopped for good right away instead of handed back.
+     */
+    fun dismiss(leaving: Boolean = false) {
+        val wasShowing = root != null
         root?.let { runCatching { wm.removeView(it) } }
         owner?.destroy()
-        if (root != null) main.postDelayed(release, RELEASE_DELAY_MS)
         root = null
         owner = null
+        if (leaving) {
+            main.removeCallbacks(release)
+            quiet.release(stop = true)
+        } else if (wasShowing) {
+            main.postDelayed(release, RELEASE_DELAY_MS)
+        }
     }
 
     /** For the gate going away: let go now, there's no next screen. */

@@ -472,6 +472,15 @@ few seconds the gate is up. No switch (your call): it's part of the gate, always
 to try.
 Checked on the S22 (Android 15): focus is granted, YouTube pauses, never mind lands on the home
 screen with no small window. YouTube doesn't start again by itself after you continue: tap play.
+Follow-up, same day: "never mind" still left a small window. The screen closed before Home, so
+YouTube got focus for a moment and asked for audio; when the gate let go 0.7 s later YouTube
+resumed from the background ("transient resume") and went picture-in-picture. Now, when the gate
+sends you home, it goes Home first while the gate still covers the app, then turns the pause into
+a stop (a moment of permanent focus, so the player stops for good) and lets go. Continuing into the
+app still hands focus back normally. Side effect: music playing behind a gated app also stops when
+you close it via the gate. YouTube also sends a window event ~1 s after going home; for 2 s after
+the gate sends you home, such an event counts only if the window list agrees the app is on top
+(a real reopen still prompts, checked). Checked on the S22: Android logs "entering autoPip failed".
 
 ## D-025: The "just bored" list fits your day and learns what you pick
 2026-10-19. **Decided (your call, after an interview).** The list was the same at the office as

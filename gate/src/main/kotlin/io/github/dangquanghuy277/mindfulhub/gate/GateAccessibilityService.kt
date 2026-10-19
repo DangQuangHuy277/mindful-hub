@@ -102,6 +102,8 @@ class GateAccessibilityService : AccessibilityService() {
     /** Feeds minutes used today and when they were read (F29). A fresh value skips the wait. */
     private var feedCache: Pair<Instant, Double>? = null
     private var feedRefresh: Job? = null
+    /** The app the gate just sent you home from, and until when its window events are doubted. */
+    private var sentHome: Pair<String, Long>? = null
     /** D-025: offers and picks per item, refreshed after each pick. */
     private var insteadStats: Map<String, OfferStats> = emptyMap()
 
@@ -162,6 +164,7 @@ class GateAccessibilityService : AccessibilityService() {
         if (pkg in ignored) return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && pkg != foreground) {
             if (Log.isLoggable(TAG, Log.DEBUG)) Log.d(TAG, "switch: $pkg (fg=$foreground, prompting=$promptingFor)")
+            if (strayAfterLeaving(pkg)) return
             onSwitch(pkg, event.eventTime)
         }
         if (pkg == foreground && promptingFor == null) maybeDetectShortVideo(pkg)
@@ -224,7 +227,7 @@ class GateAccessibilityService : AccessibilityService() {
             return@Runnable
         }
         promptEventId?.let { setOutcome(it, "ABANDONED") }
-        closePrompt()
+        closePrompt(leaving = true)
     }
 
     private fun maybeDetectShortVideo(pkg: String) {
@@ -340,8 +343,7 @@ class GateAccessibilityService : AccessibilityService() {
         scope.launch { eventId.complete(deps.gate.insertEvent(event(pkg, now, day, "LOCK", 0, "BLOCKED", Screen.APP).copy(screen = d.reason.name))) }
         val label = labelOf(pkg)
         val close: () -> Unit = {
-            closePrompt()
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            leaveToHome()
         }
         overlay.show(onBack = close) {
             GateLocked(
@@ -421,8 +423,7 @@ class GateAccessibilityService : AccessibilityService() {
                 ),
             )
         }
-        closePrompt()
-        performGlobalAction(GLOBAL_ACTION_HOME)
+        leaveToHome()
         val started = when (val a = item.action) {
             is InsteadAction.Timer -> launch(
                 Intent(AlarmClock.ACTION_SET_TIMER)
@@ -457,7 +458,7 @@ class GateAccessibilityService : AccessibilityService() {
         Log.i(TAG, "pausing for $pkg${if (launching) " (before launch)" else ""}")
         if (!GatePauseService.start(this, pkg, launching)) return false
         promptEventId?.let { setOutcome(it, "ABANDONED") }
-        closePrompt()
+        closePrompt(leaving = true)
         logScope.launch { deps.stamps.insertStatus(GateStatusEntity(ts = System.currentTimeMillis(), state = "PAUSED", detail = pkg)) }
         disableSelf()
         return true
@@ -498,8 +499,7 @@ class GateAccessibilityService : AccessibilityService() {
         val label = labelOf(pkg)
         val neverMind = {
             setOutcome(eventId, "ABANDONED")
-            closePrompt()
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            leaveToHome()
         }
         overlay.show(onBack = { neverMind() }) {
             GatePrompt(
@@ -518,11 +518,43 @@ class GateAccessibilityService : AccessibilityService() {
         Log.i(TAG, "prompt for $pkg shown ${SystemClock.uptimeMillis() - eventUptime} ms after the window event (N4 target ≤300)")
     }
 
-    private fun closePrompt() {
+    /** [leaving]: you left the app, or the gate is sending you home ([leaveToHome]). */
+    private fun closePrompt(leaving: Boolean = false) {
         promptingFor = null
         promptEventId = null
         promptStage = null
-        overlay.dismiss()
+        overlay.dismiss(leaving)
+    }
+
+    /**
+     * Home first, then the screen goes. The other way round, the app underneath got focus for a
+     * moment and YouTube started its video again, then shrank into a small window when home
+     * landed. Home while the gate is still up keeps it paused, and the pause becomes a stop.
+     */
+    private fun leaveToHome() {
+        foreground?.let { left ->
+            sentHome = left to SystemClock.uptimeMillis() + STRAY_WINDOW_MS
+            // A real reopen inside the window was skipped; catch it once the window ends.
+            main.postDelayed({
+                if (foreground != left && topApp() == left) onSwitch(left, SystemClock.uptimeMillis())
+            }, STRAY_WINDOW_MS)
+        }
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        closePrompt(leaving = true)
+    }
+
+    /**
+     * Just after the gate sent you home, YouTube still sends a window event from the background
+     * (about 1 s later, as it gives up on picture-in-picture). Taken at face value it raised a new
+     * prompt over the home screen. In that window an event from the app you left counts only if
+     * the window list agrees it's on top.
+     */
+    private fun strayAfterLeaving(pkg: String): Boolean {
+        val (left, until) = sentHome ?: return false
+        if (pkg != left || SystemClock.uptimeMillis() > until) return false
+        val stray = topApp() != pkg
+        if (stray) Log.i(TAG, "ignored a late window event from $pkg after sending you home")
+        return stray
     }
 
     /** Sets a prompt's or lock's outcome with the time and the stage it was decided at (v4). */
@@ -571,16 +603,14 @@ class GateAccessibilityService : AccessibilityService() {
         val minutes = Duration.between(session.start, end).toMinutes()
         val rateAndLeave = { rating: Int ->
             scope.launch { id?.let { deps.gate.rate(it, rating) } }
-            overlay.dismiss()
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            leaveToHome()
         }
         val ask = settingsOn(deps.clock.dayOf(end)).on(Feature.WORTH_IT)
         val leave = { rating: Int ->
             if (ask) {
                 rateAndLeave(rating)
             } else {
-                overlay.dismiss()
-                performGlobalAction(GLOBAL_ACTION_HOME)
+                leaveToHome()
             }
         }
         overlay.show(onBack = { leave(0) }) { GateStop(label, minutes, askRating = ask, onRate = { leave(it) }) }
@@ -606,6 +636,7 @@ class GateAccessibilityService : AccessibilityService() {
         private const val TAG = "MindfulGate"
         private const val LEAVE_CONFIRM_MS = 600L
         private const val DETECT_INTERVAL_MS = 800L
+        private const val STRAY_WINDOW_MS = 2_000L
         /** The budget check must not delay the prompt past N4 (≤300 ms); it falls back to the last value. */
         private const val BUDGET_TIMEOUT_MS = 250L
         /** D-025: how far back the "just bored" list looks when learning its order. */

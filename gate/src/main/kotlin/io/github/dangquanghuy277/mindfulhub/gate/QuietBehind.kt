@@ -18,6 +18,12 @@ import android.util.Log
  * 15 can refuse an app that isn't on top) or the app keeps taking it, the music stream is muted
  * instead. That mute is written down first, so a gate that dies while muted unmutes on its next
  * start rather than leaving the phone silent.
+ *
+ * Letting go has two kinds. After you continue into the app, a plain release hands focus back
+ * and the player may pick up again. When the gate sends you home, the app is already behind the
+ * launcher, and a plain release made YouTube resume there and shrink into a picture-in-picture
+ * window ("transient resume" in its log). So that release first turns the pause into a full stop
+ * (a moment of permanent focus, which players treat as "stop, don't come back"), then lets go.
  */
 class QuietBehind(context: Context) {
     private val audio = context.getSystemService(AudioManager::class.java)
@@ -35,6 +41,15 @@ class QuietBehind(context: Context) {
         )
         .setOnAudioFocusChangeListener({ change -> onFocusChange(change) }, main)
         .build()
+    private val stopRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build(),
+        )
+        .setOnAudioFocusChangeListener({ }, main)
+        .build()
 
     init {
         // Left muted by a gate that didn't get to release (crash, update, switched off).
@@ -48,13 +63,18 @@ class QuietBehind(context: Context) {
         takeFocus()
     }
 
-    fun release() {
+    /** [stop]: you're leaving the app, so what was paused behind the gate stays stopped. */
+    fun release(stop: Boolean = false) {
         if (!active) return
         active = false
-        if (focused) {
+        if (stop && audio.requestAudioFocus(stopRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             audio.abandonAudioFocusRequest(request)
-            focused = false
+            audio.abandonAudioFocusRequest(stopRequest)
+            Log.i(TAG, "quiet behind: stopped what was paused")
+        } else if (focused) {
+            audio.abandonAudioFocusRequest(request)
         }
+        focused = false
         if (prefs.getBoolean(KEY_MUTED, false)) unmute()
     }
 
