@@ -52,6 +52,8 @@ interface SettingDao {
 class SettingsStore(private val dao: SettingDao) {
     fun observe(): Flow<List<SettingEntity>> = dao.observe()
 
+    suspend fun rows(): List<SettingEntity> = dao.all()
+
     suspend fun on(day: LocalDate): Settings = decode(dao.all(), day)
 
     /** Changes that loosen a rule and wait for a later day: key to (value, day it starts). */

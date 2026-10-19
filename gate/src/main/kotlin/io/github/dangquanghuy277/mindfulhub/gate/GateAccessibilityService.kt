@@ -80,6 +80,8 @@ class GateAccessibilityService : AccessibilityService() {
     // D-021 features. Settings rows are kept current from the database; each decision decodes them
     // for its own logical day, so a change that waits for tomorrow starts at 04:00 by itself.
     private var settingRows: List<SettingEntity> = emptyList()
+    /** False until the rows are read once: a decision right after (re)connecting must not use defaults. */
+    private var rowsLoaded = false
     /** Home-screen apps: going there from a time box is "leaving on your own" (F10). */
     private var launchers: Set<String> = emptySet()
     /** When you left an app whose time box is still running. Cleared if you come back. */
@@ -94,7 +96,12 @@ class GateAccessibilityService : AccessibilityService() {
         ignored = setOf(packageName, "android", "com.android.systemui") + imes
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         launchers = packageManager.queryIntentActivities(home, 0).map { it.activityInfo.packageName }.toSet()
-        scope.launch { deps.rules.observe().collect { settingRows = it } }
+        scope.launch {
+            deps.rules.observe().collect {
+                settingRows = it
+                rowsLoaded = true
+            }
+        }
         restoreSessions()
         connected = this
     }
@@ -233,6 +240,10 @@ class GateAccessibilityService : AccessibilityService() {
         leftAt.remove(pkg)
         scope.launch {
             val opens = opensToday(pkg, day)
+            if (!rowsLoaded) {
+                settingRows = deps.rules.rows()
+                rowsLoaded = true
+            }
             val s = settingsOn(day)
             val night = NightClock.state(now, deps.clock, s)
             val rules = rulesFor(pkg, profile, now, s, night)
