@@ -56,7 +56,8 @@ data class GateSettings(
             "com.twitter.android" to AppProfile.LIGHT,
             "com.google.android.youtube" to AppProfile.LIGHT,
             "com.hhgame.mlbbvn" to AppProfile.GAME, // Mobile Legends (VN)
-            "com.facebook.orca" to AppProfile.MESSAGING,
+            // Messenger is not gated (2026-10-19, your call): a 2 s wait on every incoming message
+            // cost more than it saved. MESSAGING stays for any chat app you want gated later.
         )
 
         /** Banking and payment apps installed on the S22 (checked with `pm list packages`, 2026-10-19). */

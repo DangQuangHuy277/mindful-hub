@@ -83,4 +83,8 @@ class GatePolicyTest {
         kotlin.test.assertFalse(settings.pausesGate(fb))
         assertEquals(AppProfile.NONE, settings.profileOf("vn.com.techcombank.bb.app"))
     }
+
+    @Test
+    fun `messenger opens without a prompt`() =
+        assertEquals(GateDecision.Allow, GatePolicy.decide("com.facebook.orca", Screen.APP, now, emptyMap(), 0))
 }

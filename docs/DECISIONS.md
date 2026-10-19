@@ -417,6 +417,11 @@ the system splash window isn't in the accessibility window list (both checked on
 
   Android compiles apps in the background (idle and charging), so expect the own icon to start
   closing again. The shortcut doesn't depend on this race.
+- **VCB Digibank, same race, bigger gap (2026-10-19 20:49):** opened from its own icon, its login
+  screen was created at +1.55 s and the gate stepped aside at +2.12 s. VCB had already found the
+  gate and sent you to Accessibility settings. Through the shortcut, the gate was off before VCB's
+  process started, and VCB showed only its Developer options / USB debugging warning (the test
+  had USB debugging on). So VCB needs its sprout icon too; the card offers it.
 
 ## D-021: v1.0 "good side" approvals; every new feature has a switch
 2026-10-19. **Decided (your call).** After RESEARCH-TIME.md, the gamification research and
@@ -441,3 +446,9 @@ OPTIONS.md:
   slot suggests an audiobook or podcast with the screen off, an e-ink reader, or one cheap paperback.
 - **The backlog holds approved work only, as GitHub issues** with `v1.0`/`v1.1` milestones. The
   docs keep the research and OPTIONS.md keeps the candidates. Waiting on `gh` being installed.
+
+## D-022: Messenger is not gated
+2026-10-19. **Decided (your call).** Waiting 2 s every time someone messages you was too
+annoying. `com.facebook.orca` is out of
+`DEFAULT_PROFILES`; the MESSAGING profile stays for any chat app you want gated later, and its
+tests now set Messenger up explicitly. Facebook (the feed) is still STRICT.

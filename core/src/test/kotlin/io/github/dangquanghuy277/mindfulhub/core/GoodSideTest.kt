@@ -19,6 +19,8 @@ class GoodSideTest {
     private val fb = "com.facebook.katana"
     private val yt = "com.google.android.youtube"
     private val orca = "com.facebook.orca"
+    /** Messenger isn't gated by default any more; these tests cover the MESSAGING profile itself. */
+    private val withMessenger = GateSettings(profiles = GateSettings.DEFAULT_PROFILES + (orca to AppProfile.MESSAGING))
     private val ml = "com.hhgame.mlbbvn"
     private val mon = LocalDate.of(2026, 10, 19)
 
@@ -115,7 +117,7 @@ class GoodSideTest {
         assertTrue(d.bedScroll)
         assertIs<GateDecision.Locked>(GatePolicy.decide(yt, Screen.APP, at(mon, 23), emptyMap(), 0, rules = r))
         assertIs<GateDecision.Locked>(GatePolicy.decide(ml, Screen.APP, at(mon, 23), emptyMap(), 0, rules = r))
-        assertIs<GateDecision.Prompt>(GatePolicy.decide(orca, Screen.APP, at(mon, 23), emptyMap(), 0, rules = r))
+        assertIs<GateDecision.Prompt>(GatePolicy.decide(orca, Screen.APP, at(mon, 23), emptyMap(), 0, withMessenger, rules = r))
     }
 
     @Test
@@ -129,7 +131,7 @@ class GoodSideTest {
     fun `without the lock, the postcard comes before the pause after bedtime`() {
         val r = GateRules(night = NightPhase.AFTER_BEDTIME, postcardDue = true)
         assertTrue(assertIs<GateDecision.Prompt>(GatePolicy.decide(fb, Screen.APP, at(mon, 23), emptyMap(), 0, rules = r)).postcardDue)
-        assertFalse(assertIs<GateDecision.Prompt>(GatePolicy.decide(orca, Screen.APP, at(mon, 23), emptyMap(), 0, rules = r)).postcardDue)
+        assertFalse(assertIs<GateDecision.Prompt>(GatePolicy.decide(orca, Screen.APP, at(mon, 23), emptyMap(), 0, withMessenger, rules = r)).postcardDue)
         val day = GateRules(night = NightPhase.DAY, postcardDue = true)
         assertFalse(assertIs<GateDecision.Prompt>(GatePolicy.decide(fb, Screen.APP, at(mon, 15), emptyMap(), 0, rules = day)).postcardDue)
     }
