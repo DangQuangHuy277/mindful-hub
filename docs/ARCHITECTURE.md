@@ -199,7 +199,6 @@ one can be turned off today and deleted later.
 | F29 feeds budget | `FeedBudget`, `GatePolicy.capTo`, `LockReason.BUDGET` | — (usage history) | `feedMinutes`, `showLocked` | `FeedsCard`, leak line in `WeekCard` |
 | F03 wind-down | `NightClock`, `LockReason.WIND_DOWN`, `Purpose.BED_SCROLL` (Night.kt) | — | `showLocked` | Settings steppers |
 | F31 + F53 postcard | `GateRules.postcardDue` | `postcard` | `PostcardBox`, `savePostcard` | `PostcardCard` |
-| D-024 quiet behind the gate | — | — | `QuietBehind`, `GateOverlay` | — |
 | F13 + F44 sleep quest (trial) | `SleepQuest`, `Settings.sleepTimes` | — (settings) | — | `QuestCard` |
 | F61 morning receipt (trial) | — | — | — | `receiptFor`, `ReceiptCard` |
 | F17 calm links (trial) | `CalmLinks` (Plan.kt) | — | — | `CalmLinksCard` |

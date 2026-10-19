@@ -101,7 +101,7 @@ class GateAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         deps = (application as GateHost).gateDeps
-        overlay = GateOverlay(this, QuietBehind(this)) { !rowsLoaded || settingsOn(deps.clock.dayOf(Instant.now())).on(Feature.QUIET_BEHIND) }
+        overlay = GateOverlay(this, QuietBehind(this))
         val imes = getSystemService(InputMethodManager::class.java).enabledInputMethodList.map { it.packageName }
         ignored = setOf(packageName, "android", "com.android.systemui") + imes
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)

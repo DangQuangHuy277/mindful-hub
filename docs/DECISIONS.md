@@ -468,6 +468,7 @@ picture-in-picture window. While any gate screen is up, the gate now holds short
 so players pause. An app that is still starting takes focus back when its video starts, so the
 gate asks again (twice), then mutes media volume as a last resort. It lets go 0.7 s after the
 screen closes, so "never mind" is already home by then. Music you're listening to pauses for the
-few seconds the gate is up. It has a switch, "Quiet behind the gate".
+few seconds the gate is up. No switch (your call): it's part of the gate, always on, not a feature
+to try.
 Checked on the S22 (Android 15): focus is granted, YouTube pauses, never mind lands on the home
 screen with no small window. YouTube doesn't start again by itself after you continue: tap play.

@@ -27,12 +27,12 @@ import io.github.dangquanghuy277.mindfulhub.theme.MindfulTheme
  * restricts that permission for sideloaded apps (ARCHITECTURE.md, spike item 1). A ComposeView
  * outside an Activity needs its own lifecycle and saved-state owner, provided by [OverlayOwner].
  *
- * While it's up, [quiet] (D-024) stops the app underneath from playing sound, if [quietOn] says so.
+ * While it's up, [quiet] (D-024) stops the app underneath from playing sound. It's part of the
+ * gate, so it has no switch.
  */
 class GateOverlay(
     private val service: AccessibilityService,
     private val quiet: QuietBehind,
-    private val quietOn: () -> Boolean,
 ) {
     private val wm = service.getSystemService(WindowManager::class.java)
     private val main = Handler(Looper.getMainLooper())
@@ -47,7 +47,7 @@ class GateOverlay(
     fun show(onBack: () -> Unit, content: @Composable () -> Unit) {
         dismiss()
         main.removeCallbacks(release)
-        if (quietOn()) quiet.hush()
+        quiet.hush()
         val o = OverlayOwner().also { it.start() }
         val compose = ComposeView(service).apply {
             setContent {
