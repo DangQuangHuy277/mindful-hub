@@ -452,3 +452,10 @@ OPTIONS.md:
 annoying. `com.facebook.orca` is out of
 `DEFAULT_PROFILES`; the MESSAGING profile stays for any chat app you want gated later, and its
 tests now set Messenger up explicitly. Facebook (the feed) is still STRICT.
+
+## D-023: Facebook doesn't ask about messages
+2026-10-19. **Decided (your call).** Messages go through Messenger, so on Facebook "Message
+someone" and "See something someone sent me" were almost never the real reason. Facebook now
+offers: check a group or page · post something · honestly, just bored. Instagram and Threads keep
+both messaging reasons, since their DMs are in the app. Older Facebook rows logged with those two
+purposes stay as they are.

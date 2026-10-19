@@ -141,7 +141,7 @@ see A1.
 ### E. Gate (Android)
 | ID | Requirement | Why |
 |---|---|---|
-| E1 | Opening Facebook, Instagram, Threads, X, YouTube or Mobile Legends brings up a pause (default 5 s) and "What for?". The options are: group time · message someone · something someone sent me · post something · watch a specific video · play N matches · *just bored* | P3 |
+| E1 | Opening Facebook, Instagram, Threads, X, YouTube or Mobile Legends brings up a pause (default 5 s) and "What for?". The options are: group time · message someone · something someone sent me · post something · watch a specific video · play N matches · *just bored*. Facebook leaves out the two messaging options (D-023) | P3 |
 | E2 | "Just bored" shows the Instead list (R1) and when the next digest is due. You can still go on, but with a longer delay. You decide | P9, P12 |
 | E3 | You pick a time box when you enter (5/10/15 min, or "N matches" for games). When it ends, a full-screen stop appears, then A2 | P6, P17 |
 | E4 | Calm-you sets a daily budget for each feed app. **Changes apply the next day** | P2 |

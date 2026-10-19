@@ -24,6 +24,18 @@ class GatePolicyTest {
     }
 
     @Test
+    fun `facebook offers no messaging reasons, since messages live in messenger`() {
+        val d = assertIs<GateDecision.Prompt>(GatePolicy.decide(fb, Screen.APP, now, emptyMap(), 0))
+        assertEquals(listOf(Purpose.GROUP_TIME, Purpose.POST, Purpose.JUST_BORED), d.purposes)
+    }
+
+    @Test
+    fun `instagram keeps the messaging reasons`() {
+        val d = assertIs<GateDecision.Prompt>(GatePolicy.decide("com.instagram.android", Screen.APP, now, emptyMap(), 0))
+        assertEquals(listOf(Purpose.GROUP_TIME, Purpose.MESSAGE, Purpose.SHARED_ITEM, Purpose.POST, Purpose.JUST_BORED), d.purposes)
+    }
+
+    @Test
     fun `an open inside an active time box is allowed`() {
         val s = mapOf(fb to ActiveSession(fb, Purpose.GROUP_TIME, now.minusSeconds(60), now.plusSeconds(240)))
         assertEquals(GateDecision.Allow, GatePolicy.decide(fb, Screen.APP, now, s, 3))
