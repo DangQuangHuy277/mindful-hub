@@ -205,6 +205,53 @@ not the company's claim, unless stated otherwise.
 - **F37 Earn scroll time with exercise** (Clearspace-style): included only to show why it's out (see
   the gate below). (P26)
 
+## Our own ideas, built from the research
+
+F25–F36 apply the research fairly directly. These go a step further: each starts from a finding and
+asks "what would we build if we took this seriously?" No app in the industry table does them. The
+chain is shown as **finding → idea**.
+
+- **F55 Feature-aware time box.** *Cho 2021: the "following" feed and Watch drain value fastest,
+  while groups and messages don't (P23).* → The time box only counts down while you're in the feed or
+  Watch, not in a group or a chat. You're budgeting the expensive part of Facebook, not the useful
+  part. (P23, E7, E8)
+- **F56 Split box with a break.** *Nelson & Meyvis: a break makes a pleasant experience enjoyable
+  again. Rixen: sessions rarely end by your own choice (P6).* → Instead of one 30-min YouTube box, the
+  gate offers 2 × 15 min with a 5-min off-screen break in between. You get more out of the second half,
+  and the break is a natural exit. (P23, P6)
+- **F57 Note from calm-you.** *Allcott 2022: people want commitments (P25). Rösch 2022: a concrete
+  self-image makes choices more patient (P29).* → When you set a rule in the review, you write one line
+  on why ("I want to wake at 8 and feel good"). Before tempted-you uses an escape pass (F28), the gate
+  shows that line, in your own words. (P25, P29)
+- **F58 Reset sprint with a taper.** *Allcott 2022: a 3-week incentive left a lasting drop (P26).
+  Haliburton 2024: most change happens in the first ~3 weeks (P32). Monge Roffarello 2023: studies
+  rarely test what lasts when a tool is removed.* → A planned 3-week sprint with strong friction, then
+  rules loosen step by step over 3 more weeks while the app watches what holds. You find out which
+  rules you actually need, and only keep those. (P26, P32, P13)
+- **F59 One-minute replacements.** *Tran 2019: compulsive sessions start in unoccupied moments
+  (waiting, dull tasks). P27: plan the replacement.* → The Instead list is matched to how long you
+  have. In a 1-minute moment (toilet, waiting, a build compiling) it offers 1-minute things: one
+  lc-trainer card, look out the window, a voice note to her. A 20-minute walk is offered only when
+  there's 20 minutes. (P27, P9)
+- **F60 Real-world setup kit.** *Duckworth et al. 2018: changing the situation beats willpower (P1).
+  Hofmann 2012: people with good self-control avoid temptation rather than resist it.* → The weekly
+  plan (F27) ends with a 2-minute physical checklist: book on the pillow, shoes by the door, charger
+  across the room (Z3), lc-trainer open on the laptop. The phone app's job is to set up the room, not
+  to win the fight later. (P1, P28, P19)
+- **F61 Morning receipt.** *Kluger & DeNisi: feedback should be about the task (P24). Allcott:
+  people act as if they don't see the cost coming (P29).* → On waking, one calm card: last night's
+  minutes after bedtime, sleep start and wake time, next to *your own* best recent night. It's your data
+  as the "future cost" evidence, not a generic warning. It never says "you failed". (P29, P24, P19)
+- **F62 Risk-weighted friction.** *Haliburton and Kovacs: friction wears off with repetition (P32).
+  Vance 2018: attention recovers between days. BASELINE: the harm is concentrated at night.* → Instead
+  of a delay that grows with every open, friction is spent where your heatmap shows the risk: strong at
+  night, in bed and after the 3rd open in an hour; near zero for a quick daytime check. Less exposure
+  means less habituation where it matters. (P32, P3, P19)
+- **F63 Freed-minutes ledger.** *Castelo 2025 and Allcott 2020: what the time turns into matters
+  (P16). Harkin 2016: recorded progress works (P10).* → The weekly review shows the unintended minutes
+  you freed against baseline *next to* where they went: "5 h freed: 2 h walking, 1 h reading, 2 h not
+  logged". It makes the swap visible, which is the whole point of G5. (P16, P10, D-004)
+
 ## Scoring
 
 Criteria and weights are **proposed**. The first four match FEATURES-V1.md. One is new, because this
@@ -220,57 +267,75 @@ round's goal is not only less time but *better* time.
 
 Gate (must pass, not weighted): free to run, no risk to your accounts, and **no shaming and no
 "currency" for good activities** (P26, P33). F37 fails the gate, because it makes the feed the prize
-and exercise the price. The other 12 pass. Max score = 55.
+and exercise the price. The other 21 pass. Max score = 55. Ideas marked **(ours)** come from the
+"Our own ideas" section above.
 
 | # | Feature | Evidence ×3 | Fit ×3 | Fills time ×2 | Effort ×2 | Annoyance ×1 | **Weighted total** |
 |---|---|---|---|---|---|---|---|
 | F26 | One-tap replacement at the gate | 4/5 Adriaanse 2011: replacement plans beat habits, negation backfires; P9 d = .65 | 5/5 "bored" is your main reason; the gate already has the bored path | 5/5 the time goes straight into a G5 action | 4/5 extends `JUST_BORED` + `InsteadDefaults` with intents | 4/5 optional, and it gives you something | **49/55 (89%)** |
 | F27 | Weekly activity plan | 5/5 BA meta-analysis g = .52 in non-clinical people; Brailovskaia RCT, combination best | 4/5 the risky slots are known (20–23 h, 01–03 h), but the bed slot is for sleep, not activities | 5/5 this is the whole point | 3/5 planner UI + reminders + done/skip log | 3/5 planning is a chore; skipped items have to stay guilt-free | **46/55 (84%)** |
+| F60 | **(ours)** Real-world setup kit | 4/5 Duckworth 2018 (A): changing the situation beats willpower; Hofmann 2012 | 4/5 bed is your #1 trigger; charger away from the bed (Z3) is already a week-0 step | 4/5 the book on the pillow *is* the replacement | 5/5 a checklist at the end of the plan | 4/5 2 min a week | **46/55 (84%)** |
 | F29 | Group budget + leak watch | 5/5 Allcott 2022 RCT: 12 of 22 min moved to other apps | 5/5 Chrome 6.4 h/week unexplained, Threads 4 h, X light by design | 1/5 subtracts only | 4/5 UsageStats + one group counter; Chrome domains need the accessibility tree | 3/5 a shared budget runs out faster | **43/55 (78%)** |
 | F31 | Tomorrow-you at night | 3/5 EFT meta-analysis g = .44, but lab choices, not phones; Allcott projection bias | 5/5 bed is your #1 trigger; 2 h 24 m of FB after midnight | 3/5 sleep counts as rest | 5/5 copy + alarm time inside the existing night gate | 3/5 night-you may resent it | **43/55 (78%)** |
+| F59 | **(ours)** One-minute replacements | 3/5 Tran 2019 triggers; P27 replacement plans | 4/5 coding breaks, waiting, the toilet are your known triggers | 4/5 small G5 actions that fit the moment | 5/5 a duration tag on Instead items | 4/5 it fits instead of nagging | **43/55 (78%)** |
+| F63 | **(ours)** Freed-minutes ledger | 3/5 Castelo and Allcott on displacement; Harkin on recorded progress | 4/5 shows where the time actually goes | 4/5 makes the swap visible | 4/5 needs A5 logging and the baseline | 5/5 a chart in the review | **42/55 (76%)** |
 | F32 | Comeback, not streaks | 4/5 broken-streak studies (7), self-compassion, reactance meta-analysis; Milkman's best arm was a comeback bonus | 3/5 slips will happen (P11), but this isn't a specific data pattern | 2/5 indirect: keeps you trying | 5/5 copy rules + one message | 5/5 kind by design | **40/55 (73%)** |
 | F35 | Temptation bundle | 4/5 Kirgios 2020 (N = 6,792): +10–12% workouts, lasting 17 weeks | 3/5 YouTube is mostly streamers, so the bundle fits; exercise habit unknown | 4/5 turns watching into moving | 3/5 a new purpose + honour log | 4/5 opt-in | **39/55 (71%)** |
+| F61 | **(ours)** Morning receipt | 3/5 task-focused feedback (Kluger); projection bias (Allcott) | 5/5 2 h 24 m of FB after midnight; the sleep shift | 2/5 indirect | 4/5 one card from data you already log | 3/5 a bad night is shown in the morning, so the tone has to be right | **39/55 (71%)** |
+| F58 | **(ours)** Reset sprint with a taper | 4/5 Allcott bonus persisted after it ended; Haliburton ~3-week window; the missing withdrawal phase | 4/5 tells you which rules you actually need | 2/5 indirect | 4/5 a schedule of settings | 3/5 3 strict weeks | **39/55 (71%)** |
 | F28 | Bounded escape hatch | 4/5 Allcott 78% kept limits; Beshears: stricter preferred; John: weak commitments fail | 4/5 weak self-discipline right now; makes F04/S1 survivable | 1/5 subtracts only | 4/5 a counter + log | 4/5 it lowers resentment of locks | **38/55 (69%)** |
+| F57 | **(ours)** Note from calm-you | 3/5 precommitment (Allcott); future-self imagery (Rösch); the note itself is untested | 4/5 weak self-discipline; escape-pass moments | 1/5 subtracts only | 5/5 one text field + one screen | 4/5 your own words | **37/55 (67%)** |
 | F33 | Partner check-in | 4/5 Epton: public goals; Harkin d = .47; NUGU; STEP UP | 3/5 you said self first; she's already in your daily life | 3/5 she sees the activities, not just the minutes | 3/5 export/share card + reaction | 3/5 privacy, and it's a relationship risk if it's framed badly | **36/55 (65%)** |
+| F62 | **(ours)** Risk-weighted friction | 3/5 habituation (Haliburton, Kovacs, Vance); the weighting is design reasoning | 5/5 your harm is concentrated at night, in bed | 1/5 subtracts only | 3/5 risk model from the heatmap | 4/5 less friction in the daytime | **36/55 (65%)** |
+| F56 | **(ours)** Split box with a break | 3/5 Nelson & Meyvis (lab); Lukoff | 4/5 YouTube streams and 60-min FB blocks | 2/5 the break can be a short walk | 4/5 a two-part timer | 3/5 a break mid-stream can annoy | **36/55 (65%)** |
 | F30 | Rotating gate forms | 4/5 Kovacs 2018 rotation, polymorphic warnings, Haliburton plateau, TypeOut | 4/5 25 opens a day is exactly where habituation bites | 1/5 subtracts only | 3/5 3–4 new overlay forms | 2/5 rotation raised attrition from 26% to 48% at one week | **34/55 (62%)** |
 | F36 | Prediction check | 3/5 Allcott: people underestimate by about 4%; no direct test of the fix | 3/5 a review add-on | 1/5 subtracts only | 5/5 one question + one number | 4/5 once a week | **34/55 (62%)** |
 | F25 | Worth-it curve time boxes | 3/5 Lukoff, Cho, Nelson & Meyvis; tuned boxes themselves are untested | 4/5 unbroken 60-min FB blocks | 1/5 subtracts only | 3/5 needs weeks of F10 ratings + a fit per app | 4/5 the defaults just get smarter | **33/55 (60%)** |
+| F55 | **(ours)** Feature-aware time box | 3/5 Cho 2021 feature-level regret; Lukoff | 4/5 groups are your real reason, the feed is the habit | 1/5 subtracts only | 2/5 detecting the feed screen is fragile, like Reels | 4/5 fairer to real use | **31/55 (56%)** |
 | F34 | Urge-surf form | 2/5 one smoking study; mindfulness rarely beats active controls | 3/5 bored openings fit | 1/5 subtracts only | 4/5 one more form in F30 | 3/5 meditative prompts annoy some people | **28/55 (51%)** |
 | F37 | Earn scroll time with exercise | ❌ **fails the gate** (P26) | — | — | — | — | — |
 
 Proposed tiers, same cut-offs in percent as FEATURES-V1.md: **≥75% → next**, 60–74% → after,
-<60% → later. Next: F26, F27, F29, F31. After: F32, F35, F28, F33, F30, F36, F25. Later: F34.
+<60% → later. Next: F26, F27, F60, F59, F29, F31, F63. After: F32, F61, F58, F35, F28, F57, F62, F56,
+F33, F30, F36, F25. Later: F55, F34.
 
 ## What the table shows
 
-- **The winners fill time; the rest only subtract.** F26 and F27 are the only candidates that score
-  5/5 on "fills the freed time", and they also have the strongest evidence. Most of the industry,
-  and most of F01–F24, subtract. This is the gap.
+- **The winners fill time; the rest only subtract.** F26, F27 and our own F60, F59 and F63 are the
+  ones that score 4–5/5 on "fills the freed time", and four of them reach the "next" tier. Most of
+  the industry, and most of F01–F24, subtract. This is the gap.
+- **Our own ideas hold up.** F60 (real-world setup kit) ties F27 for second place. It's the cheapest
+  way to act on the strongest principle we have (P1: change the situation). F59 (one-minute
+  replacements) and F63 (freed-minutes ledger) also reach the "next" tier, and both are small
+  extensions of things already planned (F26, A5).
 - **F29 is the cheapest protection for everything else.** The substitution result is A-grade, and your
   baseline already has the leak (Chrome 6.4 h/week, Threads 4 h). Without it, every "minutes saved"
   chart overstates the win.
-- **F31 ties F29 on points**, and wins on effort (it's copy inside the night gate). It loses the
-  tie-break because its evidence comes from lab choices, not phone use.
+- **F31 ties F29 on points**, and wins on effort (it's copy inside the night gate). Its evidence comes
+  from lab choices, not phone use. F61 (morning receipt) is its morning twin.
 - **F32 is nearly free and should ship with whatever comes first.** It's mostly copy rules, and it
   protects every other feature from the "I failed, so why bother" spiral.
-- **Sensitivity.** F26 stays first under every change tried. If "fills the freed time" counts only ×1,
-  F29 (42/50, 84%) moves above F27 (41/50, 82%). If evidence counts only ×2, F31 (40/50, 80%) moves
-  above F29 (38/50, 76%). If fills counts ×3, F27 stays second and F31 goes third. If effort counts ×1,
-  the order is F26, F27, F29, F31. **The top four are the same set under every weighting tried, in a
-  slightly different order.**
+- **Sensitivity.** F26 stays first under every change tried. F27 and F60 are second and third under
+  every weighting except one: if "fills the freed time" counts only ×1, F29 ties F60 for second
+  (42/50) and F27 drops to fourth (41/50). If evidence counts only ×2, F59 and F31 (40/50) move above
+  F29 (38/50).
 - **F30 (rotating forms) scores low despite good evidence**, because rotation cost retention in
   HabitLab. Don't drop it: it's the fix for the week-3 plateau. Build it after the replacement
-  features, and with the "why it changed" note that halved attrition.
+  features, and with the "why it changed" note that halved attrition. F62 (risk-weighted friction) is
+  the cheaper way to slow habituation in the meantime.
 
 ## Recommendation
 
-Build **F26 → F29 → F27**, with **F32**'s copy rules applied from the first one, and **F31** as a
-cheap add-on when the night gate is next touched:
-1. **F26 one-tap replacement**: it turns the gate's existing "just bored" path from a pause into a
-   start. It's small, because `InsteadDefaults` and `Purpose.JUST_BORED` already exist.
+Build three small slices, with **F32**'s copy rules applied from the first one:
+1. **F26 + F59, one-tap replacement sized to the moment**: it turns the gate's existing "just bored"
+   path from a pause into a start. It's small, because `InsteadDefaults` and `Purpose.JUST_BORED`
+   already exist, and F59 is just a duration tag on each Instead item.
 2. **F29 group budget + leak watch**: it keeps the numbers honest before more friction is added.
-3. **F27 weekly activity plan**: it ships with the Sunday review (F11), and uses the heatmap you
-   already have.
+3. **F27 + F60, weekly activity plan with a real-world setup kit**: it ships with the Sunday review
+   (F11), uses the heatmap you already have, and ends with the 2-minute "set up the room" checklist.
+
+Then **F31 + F61** as the night/morning pair when the night gate is next touched, and **F63** once A5
+logging exists.
 
 **Measure it.** Run each one as an A/B week against the baseline (F23). The outcome is unintended
 minutes (G1) *plus* hours per G5 category, and "time in ungated apps" as the guard metric.

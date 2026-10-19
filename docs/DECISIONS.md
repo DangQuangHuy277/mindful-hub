@@ -417,3 +417,27 @@ the system splash window isn't in the accessibility window list (both checked on
 
   Android compiles apps in the background (idle and charging), so expect the own icon to start
   closing again. The shortcut doesn't depend on this race.
+
+## D-021: v1.0 "good side" approvals; every new feature has a switch
+2026-10-19. **Decided (your call).** After RESEARCH-TIME.md, the gamification research and
+OPTIONS.md:
+- **Approved for v1.0:** F32 (copy rules, comeback), F10 (worth-it rating), F26 + F59 (one-tap
+  Instead, sized to the moment), A5 (activity log), F11 + F12 (weekly review + WHO-5), F27 + F60
+  (weekly plan + setup kit), F29 (feeds budget + leak watch), F03 (wind-down lock), F31 + F53
+  (tomorrow-you postcard).
+- **Trial (built so you can try them, not approved yet):** F13 + F44 + F61 (sleep-shift quest and
+  morning receipt), F17 + F18 (calm launcher and group time).
+- **Every new feature has a switch in Settings** and its own code, so an unsure one can be turned
+  off now and deleted later. Switching off a *restriction* (F29 budget, F03 wind-down) applies the
+  next day, the same rule as E4 and S4 (P2). Everything else switches immediately.
+- **F10, your change:** leaving a gated app on your own before the time box ends never prompts. It
+  counts as a "left early" win in the findings and the review, with a small toast as you leave.
+- **F03, your concern:** you sometimes scroll to fall asleep. That needs its own research before
+  the lock is tightened. Until then, F03 has an optional "one 10-minute scroll in bed" setting.
+- **No paper books yet (F27, F60):** don't delay the feature. Daytime reading can be on the phone
+  (Substack, an e-book). In bed, the phone is the problem: reading a light-emitting e-reader before
+  bed delayed sleep and the body clock compared with a printed book (Chang et al. 2015, *PNAS*,
+  n = 12, randomised crossover, 4 h a night, so a 20-minute read is a much smaller dose). So the bed
+  slot suggests an audiobook or podcast with the screen off, an e-ink reader, or one cheap paperback.
+- **The backlog holds approved work only, as GitHub issues** with `v1.0`/`v1.1` milestones. The
+  docs keep the research and OPTIONS.md keeps the candidates. Waiting on `gh` being installed.
