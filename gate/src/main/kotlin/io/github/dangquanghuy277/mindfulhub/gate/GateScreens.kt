@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dangquanghuy277.mindfulhub.core.GateDecision
 import io.github.dangquanghuy277.mindfulhub.core.InsteadDefaults
+import io.github.dangquanghuy277.mindfulhub.core.InsteadItem
+import io.github.dangquanghuy277.mindfulhub.core.NightPhase
 import io.github.dangquanghuy277.mindfulhub.core.Purpose
 import io.github.dangquanghuy277.mindfulhub.core.TimeBox
 import io.github.dangquanghuy277.mindfulhub.theme.CardTone
@@ -56,6 +58,7 @@ private val Purpose.emoji: String
         Purpose.WATCH_SPECIFIC -> "🎬"
         Purpose.PLAY_MATCHES -> "🎮"
         Purpose.JUST_BORED -> "🥱"
+        Purpose.BED_SCROLL -> "🌙"
     }
 
 /** Emoji for the Instead categories (F15); unknown ones get a sparkle. */
@@ -69,6 +72,8 @@ private fun insteadEmoji(category: String): String = when (category) {
 }
 
 private sealed interface Phase {
+    /** F31 + F53: after bedtime, the postcard comes first. */
+    data object Postcard : Phase
     data object Countdown : Phase
     data object ChoosePurpose : Phase
     data object Bored : Phase
@@ -87,12 +92,21 @@ fun GatePrompt(
     boredExtraDelay: Duration,
     onNeverMind: () -> Unit,
     onProceed: (Purpose, TimeBox) -> Unit,
+    /** F26 + F59 is on: "just bored" offers one-tap things to start instead of a list to read. */
+    instead: ((InsteadItem) -> Unit)? = null,
+    night: NightPhase = NightPhase.DAY,
+    wakeText: String = "",
+    onPostcard: (String) -> Unit = {},
 ) {
-    var phase by remember { mutableStateOf<Phase>(Phase.Countdown) }
+    var phase by remember { mutableStateOf<Phase>(if (prompt.postcardDue) Phase.Postcard else Phase.Countdown) }
     GateSurface {
         Text(appLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(line, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         when (val p = phase) {
+            Phase.Postcard -> {
+                PostcardBox(wakeText, onPostcard)
+                TextButton(onClick = { phase = Phase.Countdown }) { Text("Continue") }
+            }
             Phase.Countdown -> Countdown(prompt.delay) { phase = Phase.ChoosePurpose }
             Phase.ChoosePurpose -> {
                 Text("What for?", style = MaterialTheme.typography.titleSmall)
@@ -106,7 +120,7 @@ fun GatePrompt(
             }
             Phase.Bored -> {
                 Text("That's honest. Any of these instead?", style = MaterialTheme.typography.titleSmall)
-                SoftCard(Modifier.fillMaxWidth(), tone = CardTone.Lavender) {
+                if (instead != null) InsteadPanel(night, instead) else SoftCard(Modifier.fillMaxWidth(), tone = CardTone.Lavender) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         InsteadDefaults.items.forEach { (cat, text) ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -139,11 +153,19 @@ private fun TimeBoxes(boxes: List<TimeBox>, onPick: (TimeBox) -> Unit) {
     }
 }
 
-/** End of a time box (E3, A2): one tap to rate, then home. */
+/**
+ * End of a time box (E3, A2): one tap to rate, then home. With F10 off there's no question, just
+ * the stop. Leaving early never reaches this screen (D-021).
+ */
 @Composable
-fun GateStop(appLabel: String, minutes: Long, onRate: (Int) -> Unit) {
+fun GateStop(appLabel: String, minutes: Long, askRating: Boolean = true, onRate: (Int) -> Unit) {
     GateSurface {
         Text("Time's up", style = MaterialTheme.typography.headlineSmall)
+        if (!askRating) {
+            Text("$minutes min of $appLabel.", textAlign = TextAlign.Center)
+            PillButton("OK", onClick = { onRate(0) }, emoji = "🌿")
+            return@GateSurface
+        }
         Text("$minutes min of $appLabel. Was it worth it?", textAlign = TextAlign.Center)
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             EmojiCircleButton("👍", "Worth it", { onRate(1) }, PillTone.Mint)
@@ -188,7 +210,7 @@ private fun Countdown(length: Duration, onDone: () -> Unit) {
 
 /** White page with the mascot on top. Scrolls, so long purpose lists still fit small screens. */
 @Composable
-private fun GateSurface(content: @Composable () -> Unit) {
+internal fun GateSurface(content: @Composable () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         // min height = the screen, so short content stays centered while long content scrolls.
         BoxWithConstraints(Modifier.safeDrawingPadding()) {

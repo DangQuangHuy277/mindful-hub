@@ -15,9 +15,12 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.github.dangquanghuy277.mindfulhub.core.AppProfile
+import io.github.dangquanghuy277.mindfulhub.core.FeedBudget
 import io.github.dangquanghuy277.mindfulhub.core.GateSettings
+import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
 import io.github.dangquanghuy277.mindfulhub.core.LogicalDayClock
 import io.github.dangquanghuy277.mindfulhub.data.MindfulDatabase
+import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
 import io.github.dangquanghuy277.mindfulhub.data.UsageRepository
 import io.github.dangquanghuy277.mindfulhub.data.UsageStatsImporter
 import io.github.dangquanghuy277.mindfulhub.gate.BankLaunchActivity
@@ -38,13 +41,31 @@ class AppContainer(context: Context) {
     val gateDao = db.gate()
     val clock = LogicalDayClock(ZoneId.systemDefault())
     val gateSettings = GateSettings()
+
+    // D-021 features.
+    val settingsStore = SettingsStore(db.settings())
+    val goodThings = db.goodThings()
+    val plans = db.plans()
+    val reviews = db.reviews()
+    val postcards = db.postcards()
+    val strictApps: Set<String> = gateSettings.profiles.filterValues { it == AppProfile.STRICT }.keys
+
+    /** F29: minutes in STRICT apps so far today. Imports the newest system events first. */
+    suspend fun feedMinutesToday(now: Instant): Double {
+        if (importer.hasPermission()) runCatching { importer.importNew() }
+        val from = clock.startOf(clock.dayOf(now))
+        val sessions = Sessionizer.sessions(usage.events(from.minus(Duration.ofHours(3)), now), now)
+        return FeedBudget.usedMinutes(sessions, strictApps, from, now)
+    }
 }
 
 class MindfulApp : Application(), GateHost {
     lateinit var container: AppContainer
         private set
 
-    override val gateDeps: GateDeps by lazy { GateDeps(container.gateDao, container.clock, container.gateSettings) }
+    override val gateDeps: GateDeps by lazy {
+        with(container) { GateDeps(gateDao, clock, gateSettings, settingsStore, goodThings, postcards, ::feedMinutesToday) }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -52,6 +73,9 @@ class MindfulApp : Application(), GateHost {
         BankLaunchActivity.publishShortcuts(this, container.gateSettings)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(HEALTH_CHANNEL, "Gate health", NotificationManager.IMPORTANCE_HIGH),
+        )
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(PlanReminders.CHANNEL, "Planned good things", NotificationManager.IMPORTANCE_DEFAULT),
         )
         // Android keeps only a short event history, so copy it hourly before it ages out.
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(

@@ -19,6 +19,8 @@ enum class Purpose(val label: String) {
     WATCH_SPECIFIC("Watch a specific video or stream"),
     PLAY_MATCHES("Play a few matches"),
     JUST_BORED("Honestly, just bored"),
+    /** F03 option: the one 10-minute scroll in bed (D-021). Never offered in the normal list. */
+    BED_SCROLL("One wind-down scroll"),
 }
 
 data class GateSettings(
@@ -83,11 +85,37 @@ sealed interface GateDecision {
         val timeBoxes: List<TimeBox>,
         /** 1-based open number today; drives escalation and the rotating copy. */
         val openNumber: Int,
+        /** F31 + F53: after bedtime, the postcard comes before the pause. */
+        val postcardDue: Boolean = false,
     ) : GateDecision
     data class Block(val reason: BlockReason) : GateDecision
+
+    /**
+     * The app is resting (F03 wind-down, F29 budget used up). Unlike [Block] this is shown at the
+     * open, with what's possible instead: the postcard (F53), a bed scroll if allowed tonight.
+     */
+    data class Locked(val reason: LockReason, val bedScroll: Boolean = false, val postcardDue: Boolean = false) : GateDecision
 }
 
 enum class BlockReason { SHORT_VIDEO }
+
+enum class LockReason { WIND_DOWN, BUDGET }
+
+/**
+ * What the newer features add to a decision (D-021). Everything defaults to "off", so with
+ * `GateRules()` the gate behaves exactly like the gate core (F01, F02, F05, F06).
+ */
+data class GateRules(
+    val night: NightPhase = NightPhase.DAY,
+    /** F03 is on. */
+    val windDownLock: Boolean = false,
+    /** F03 option is on and tonight's scroll hasn't been used. */
+    val bedScrollLeft: Boolean = false,
+    /** F31 + F53 is on and no postcard has been written tonight. */
+    val postcardDue: Boolean = false,
+    /** F29: minutes left in today's feeds budget, or null when there's no budget. */
+    val feedMinutesLeft: Double? = null,
+)
 
 /** A time-box choice. Games are offered in matches; one match ≈ 20 min (D-006). */
 data class TimeBox(val label: String, val length: Duration)
@@ -104,6 +132,7 @@ object GatePolicy {
         sessions: Map<String, ActiveSession>,
         opensToday: Int,
         settings: GateSettings = GateSettings(),
+        rules: GateRules = GateRules(),
     ): GateDecision {
         val profile = settings.profileOf(pkg)
         if (profile == AppProfile.NONE) return GateDecision.Allow
@@ -112,14 +141,34 @@ object GatePolicy {
         }
         val session = sessions[pkg]
         if (session != null && now.isBefore(session.end)) return GateDecision.Allow
+        // Messages stay light at night: no postcard step before them.
+        val postcard = rules.postcardDue && rules.night == NightPhase.AFTER_BEDTIME && profile != AppProfile.MESSAGING
+        if (rules.windDownLock && rules.night != NightPhase.DAY && profile != AppProfile.MESSAGING) {
+            return GateDecision.Locked(LockReason.WIND_DOWN, bedScroll = rules.bedScrollLeft, postcardDue = rules.postcardDue)
+        }
+        val left = rules.feedMinutesLeft.takeIf { profile == AppProfile.STRICT }
+        if (left != null && left < 1.0) return GateDecision.Locked(LockReason.BUDGET, postcardDue = postcard)
         val openNumber = opensToday + 1
         return GateDecision.Prompt(
             profile = profile,
             delay = delayFor(profile, openNumber, settings),
             purposes = purposesFor(profile),
-            timeBoxes = timeBoxesFor(profile),
+            timeBoxes = capTo(timeBoxesFor(profile), left),
             openNumber = openNumber,
+            postcardDue = postcard,
         )
+    }
+
+    /**
+     * F29: never offer a box longer than the budget left. If the shortest box doesn't fit, the one
+     * box offered is what's left, so the last few minutes are usable rather than lost.
+     */
+    fun capTo(boxes: List<TimeBox>, minutesLeft: Double?): List<TimeBox> {
+        if (minutesLeft == null) return boxes
+        val fits = boxes.filter { it.length.toMinutes() <= minutesLeft }
+        val whole = minutesLeft.toLong().coerceAtLeast(1)
+        return if (fits.size == boxes.size || fits.any { it.length.toMinutes() == whole }) fits
+        else fits + TimeBox("$whole min (all that's left)", Duration.ofMinutes(whole))
     }
 
     /** Base delay, plus one step per open beyond the free ones, capped (E5). */

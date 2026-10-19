@@ -79,8 +79,10 @@ on decisions. That split is what makes a later move to KMP (A4) a build change, 
 | `daily_aggregate` | logical_day, pkg, minutes, opens, unintended_min, after_bedtime_min | review, G7 |
 | `weekly_review` | week, who5[5], missed_anything, one_change, notes | F11, F12, A4 |
 | `plan` | type (IF_THEN/INSTEAD), trigger, text, category (move/people/read/build/rest) | F14, F15 |
-| `activity_log` | ts, category, minutes | G5 |
-| `setting` | key, value, **effective_from (logical day)** | precommitment (E4, S4) |
+| `setting` | key, value, **effective_from (logical day)** | precommitment (E4, S4), feature switches (D-021) |
+| `good_thing` | ts, category, minutes, note, source (home/gate/plan) | A5, G5 |
+| `plan_item` · `setup_kit` | week, day, time, category, minutes, title, status · ticked items | F27, F60 |
+| `postcard` | night (logical day), text | F31 + F53 |
 
 ## Design rules that aren't obvious
 
@@ -139,6 +141,46 @@ UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" an
 - **Time boxes must be persisted**: an in-memory timer is lost on any service re-bind. Open
   sessions are reloaded from Room on connect.
 - `adb install` (streamed) dropped the USB link on this phone; `adb push` + `pm install` works.
+
+## Feature switches (D-021)
+
+Every feature added after the gate core has a switch in **Settings**, and its own code, so an unsure
+one can be turned off today and deleted later.
+- **The switch list** is `Feature` in `:core` `Features.kt`. Each entry has an F-number, a status
+  (APPROVED or TRIAL) and `restricts`. Switches are stored like any other setting, in the `setting`
+  table with an `effectiveFrom` day (`SettingsStore`, `:data` `GoodSideData.kt`).
+- **Precommitment**: `Precommit.loosens` decides. Switching off a restriction (F29, F03), raising the
+  budget, a later bedtime or wake time, a shorter wind-down, or allowing the bed scroll waits until
+  tomorrow's logical day. Everything else, including every trial switch, applies at once.
+- **The gate reads the switches on every decision**: it keeps the setting rows current from a Room
+  `Flow` and decodes them for the decision's own logical day, so a waiting change starts at 04:00 by
+  itself. With every switch off, `GateRules()` is the default and the gate behaves as before.
+
+**Where each feature lives** (to remove one: delete these, its `Feature` entry and its card hook):
+
+| Feature | `:core` | `:data` table | `:gate` | `:app` |
+|---|---|---|---|---|
+| F32 comeback | `Comeback` (Review.kt) | — | — | `HelloCard` (TodayScreen.kt) |
+| F10 worth-it + left early | `GateBox.leftEarly` | `session` (existing) | `noteLeaving`, `GateStop(askRating)` | `PauseWins.leftEarly` (InsightsView) |
+| F26 + F59 instead | `InsteadMenu`, `Moment` (GoodThings.kt) | `good_thing` | `InsteadPanel`, `doInstead` | — |
+| A5 good things | `Category`, `GoodThings` | `good_thing` | — | `GoodLogCard` |
+| F11 + F12 review | `WeekReview`, `UnintendedTime`, `Who5` (Review.kt) | `weekly_review` | — | `ui/review` |
+| F27 + F60 plan + kit | `WeekPlan`, `SetupKit` (Plan.kt) | `plan_item`, `setup_kit` | — | `PlanCard`, `KitCard`, `PlanTodayCard`, `PlanReminders.kt` |
+| F29 feeds budget | `FeedBudget`, `GatePolicy.capTo`, `LockReason.BUDGET` | — (usage history) | `feedMinutes`, `showLocked` | `FeedsCard`, leak line in `WeekCard` |
+| F03 wind-down | `NightClock`, `LockReason.WIND_DOWN`, `Purpose.BED_SCROLL` (Night.kt) | — | `showLocked` | Settings steppers |
+| F31 + F53 postcard | `GateRules.postcardDue` | `postcard` | `PostcardBox`, `savePostcard` | `PostcardCard` |
+| F13 + F44 sleep quest (trial) | `SleepQuest`, `Settings.sleepTimes` | — (settings) | — | `QuestCard` |
+| F61 morning receipt (trial) | — | — | — | `receiptFor`, `ReceiptCard` |
+| F17 calm links (trial) | `CalmLinks` (Plan.kt) | — | — | `CalmLinksCard` |
+
+**Copy rules (F32)**, for every screen: suggest ("want to…?", "could"), never order. State the task
+fact ("42 min after bedtime"), never a verdict about you. Nothing resets: no streaks, counts only go
+up. A slip day gets "welcome back" and one next step. Every Instead line says what to *do*, never
+"don't" (P27). Rationale: RESEARCH-TIME.md P24, P27, P33.
+
+**Unverified on the phone** (built and unit-tested, not yet tried on the S22): typing in the overlay
+(the postcard field), the Clock app's timer from the gate, the toast after leaving early, plan
+reminders, and the 250 ms budget read inside the prompt's latency budget (N4).
 
 ## Usage views (D-018)
 `:app` `ui/views/UsageView.kt` holds the registry. Each view gets one `UsageSnapshot`: sessions for

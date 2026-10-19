@@ -12,6 +12,9 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import io.github.dangquanghuy277.mindfulhub.core.GateBox
+import io.github.dangquanghuy277.mindfulhub.core.Purpose
+import java.time.Instant
 
 /**
  * One row per usage event. `source` is "usage" (system UsageStats) or, later, "gate" (our
@@ -106,18 +109,46 @@ interface GateDao {
 
     @Query("UPDATE session SET rating = :rating WHERE id = :id")
     suspend fun rate(id: Long, rating: Int)
+
+    /** Sessions started in [from, to), for the review and the findings (G1, F10). */
+    @Query("SELECT * FROM session WHERE start >= :from AND start < :to ORDER BY start")
+    suspend fun sessionsBetween(from: Long, to: Long): List<SessionEntity>
+
+    /** F03 option: has tonight's one bed scroll been used? */
+    @Query("SELECT COUNT(*) FROM session WHERE purpose = 'BED_SCROLL' AND start >= :from AND start < :to")
+    suspend fun bedScrollsBetween(from: Long, to: Long): Int
 }
+
+fun SessionEntity.toGateBox() = GateBox(
+    pkg = pkg,
+    purpose = runCatching { Purpose.valueOf(purpose) }.getOrDefault(Purpose.JUST_BORED),
+    start = Instant.ofEpochMilli(start),
+    plannedEnd = Instant.ofEpochMilli(plannedEnd),
+    rating = rating,
+    endedBy = endedBy,
+    end = end?.let(Instant::ofEpochMilli),
+)
 
 data class GateSummaryRow(val decision: String, val outcome: String?, val n: Int)
 
 @Database(
-    entities = [AppEventEntity::class, GateEventEntity::class, SessionEntity::class],
-    version = 2,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    entities = [
+        AppEventEntity::class, GateEventEntity::class, SessionEntity::class,
+        // D-021 features, one table each (GoodSideData.kt).
+        SettingEntity::class, GoodThingEntity::class, PlanItemEntity::class, SetupKitEntity::class,
+        WeeklyReviewEntity::class, PostcardEntity::class,
+    ],
+    version = 3,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class MindfulDatabase : RoomDatabase() {
     abstract fun appEvents(): AppEventDao
     abstract fun gate(): GateDao
+    abstract fun settings(): SettingDao
+    abstract fun goodThings(): GoodThingDao
+    abstract fun plans(): PlanDao
+    abstract fun reviews(): ReviewDao
+    abstract fun postcards(): PostcardDao
 
     companion object {
         fun create(context: Context): MindfulDatabase =

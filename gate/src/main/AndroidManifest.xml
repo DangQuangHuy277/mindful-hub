@@ -11,6 +11,9 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- F26: "walk 10 min" starts a countdown in the Clock app. A normal permission. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
     <application>
         <service
             android:name="io.github.dangquanghuy277.mindfulhub.gate.GateAccessibilityService"

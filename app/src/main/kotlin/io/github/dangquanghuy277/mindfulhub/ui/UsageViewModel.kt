@@ -6,10 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dangquanghuy277.mindfulhub.AppContainer
 import io.github.dangquanghuy277.mindfulhub.core.AppProfile
+import io.github.dangquanghuy277.mindfulhub.core.Feature
+import io.github.dangquanghuy277.mindfulhub.core.sleepTimes
+import io.github.dangquanghuy277.mindfulhub.data.toGateBox
 import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
 import io.github.dangquanghuy277.mindfulhub.core.UsageAnalytics
 import io.github.dangquanghuy277.mindfulhub.core.UsageInsights
-import io.github.dangquanghuy277.mindfulhub.gate.BankLaunchActivity
 import io.github.dangquanghuy277.mindfulhub.gate.GateStatus
 import io.github.dangquanghuy277.mindfulhub.ui.views.AppFilter
 import io.github.dangquanghuy277.mindfulhub.ui.views.UsageSnapshot
@@ -27,13 +29,11 @@ data class AppRow(val pkg: String, val label: String, val minutesPerDay: Double,
 data class BankApp(val pkg: String, val label: String)
 
 /** Today's gate outcomes. "Abandoned" opens are the wins (G1). */
-data class GateToday(val prompts: Int = 0, val abandoned: Int = 0, val proceeded: Int = 0, val blocked: Int = 0)
+data class GateToday(val prompts: Int = 0, val abandoned: Int = 0, val proceeded: Int = 0, val blocked: Int = 0, val leftEarly: Int = 0)
 
 data class UsageUiState(
     val gateEnabled: Boolean = false,
     val gateToday: GateToday = GateToday(),
-    /** Banks you've used this week whose gate-off shortcut isn't on the home screen yet (D-020). */
-    val banksToPin: List<BankApp> = emptyList(),
     val hasPermission: Boolean = true,
     val loading: Boolean = false,
     val historySince: Instant? = null,
@@ -44,6 +44,8 @@ data class UsageUiState(
 )
 
 class UsageViewModel(private val app: Application, private val c: AppContainer) : ViewModel() {
+    /** Tonight's bedtime from your settings or the sleep quest; the findings measure "after bedtime" from it. */
+    private var bedtime = UsageInsights.DEFAULT_BEDTIME
     private val _state = MutableStateFlow(UsageUiState())
     val state = _state.asStateFlow()
 
@@ -57,7 +59,12 @@ class UsageViewModel(private val app: Application, private val c: AppContainer) 
             val summary = c.gateDao.summary(c.clock.dayOf(Instant.now()).toString())
             fun count(decision: String, outcome: String? = null) =
                 summary.filter { it.decision == decision && (outcome == null || it.outcome == outcome) }.sumOf { it.n }
-            val gateToday = GateToday(count("PROMPT"), count("PROMPT", "ABANDONED"), count("PROMPT", "PROCEEDED"), count("BLOCK"))
+            val today0 = c.clock.dayOf(Instant.now())
+            val settings = c.settingsStore.on(today0)
+            val boxesToday = c.gateDao.sessionsBetween(c.clock.startOf(today0).toEpochMilli(), c.clock.endOf(today0).toEpochMilli())
+            val leftEarly = if (settings.on(Feature.WORTH_IT)) boxesToday.count { it.toGateBox().leftEarly } else 0
+            val gateToday = GateToday(count("PROMPT"), count("PROMPT", "ABANDONED"), count("PROMPT", "PROCEEDED"), count("BLOCK"), leftEarly)
+            bedtime = settings.sleepTimes(today0).bedtime
             _state.update { it.copy(gateEnabled = GateStatus.isEnabled(app), gateToday = gateToday) }
             if (!c.importer.hasPermission()) {
                 _state.update { it.copy(hasPermission = false) }
@@ -67,10 +74,6 @@ class UsageViewModel(private val app: Application, private val c: AppContainer) 
             runCatching { c.importer.importNew() }
 
             val now = Instant.now()
-            val usedBanks = c.usage.foregroundPackages(now.minus(Duration.ofDays(7)), now)
-            val pinned = BankLaunchActivity.pinned(app)
-            val banksToPin = c.gateSettings.pauseFor.filter { it in usedBanks && it !in pinned }.map { BankApp(it, label(it)) }
-            _state.update { it.copy(banksToPin = banksToPin) }
             val today = c.clock.dayOf(now)
             val days = (6 downTo 0).map { today.minusDays(it.toLong()) }
             val previous = (13 downTo 7).map { today.minusDays(it.toLong()) }
@@ -87,7 +90,7 @@ class UsageViewModel(private val app: Application, private val c: AppContainer) 
                     now = now, clock = c.clock, days = days,
                     previousDays = previous.takeIf { history != null && !history.isAfter(c.clock.startOf(previous.first())) },
                     sessions = sessions, gated = gated, filter = _state.value.filter,
-                    bedtime = UsageInsights.DEFAULT_BEDTIME, gateToday = gateToday,
+                    bedtime = bedtime, gateToday = gateToday,
                     labels = sessions.map { it.pkg }.distinct().associateWith(::label),
                 )
             }

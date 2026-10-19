@@ -75,7 +75,7 @@ private class InsightsModel(
             val included = d.sessions.filter { d.includes(it.pkg) }
             val input = InsightInput(
                 d.sessions, d::includes, d.clock, d.days, d.previousDays, d.bedtime, d.now,
-                d.gateToday.prompts, d.gateToday.abandoned, d.gateToday.blocked,
+                d.gateToday.prompts, d.gateToday.abandoned, d.gateToday.blocked, d.gateToday.leftEarly,
             )
             val top = UsageAnalytics.totals(included, d.clock.startOf(d.days.first()), d.now).take(MAX_APPS).map { it.pkg }
             val series = top + if (included.any { it.pkg !in top }) listOf(AppPalette.OTHER) else emptyList()
@@ -169,7 +169,12 @@ private fun insightText(insight: Insight, data: UsageSnapshot): String {
                 1 -> " 1 short video blocked."
                 else -> " ${insight.blocked} short videos blocked."
             }
-            pauses + blocked
+            val early = when (insight.leftEarly) {
+                0 -> ""
+                1 -> " You left 1 time box early, on your own. 🌿"
+                else -> " You left ${insight.leftEarly} time boxes early, on your own. 🌿"
+            }
+            pauses + blocked + early
         }
     }
 }

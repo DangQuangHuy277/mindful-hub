@@ -60,7 +60,12 @@ class GateOverlay(private val service: AccessibilityService) {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
-        )
+        ).apply {
+            // The postcard (F53) has a text field: keep it above the keyboard. The inset-based
+            // replacement needs an Activity window; this overlay isn't one.
+            @Suppress("DEPRECATION")
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        }
         wm.addView(frame, lp)
         root = frame
         owner = o

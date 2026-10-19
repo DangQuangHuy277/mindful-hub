@@ -77,15 +77,8 @@ fun UsageScreen(vm: UsageViewModel) {
             Modifier.windowInsetsPadding(WindowInsets.safeDrawing).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            NotificationPermission()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(greeting(LocalTime.now()), Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
-                if (state.gateEnabled) GateOnPill()
-            }
-            // Fail loudly, stay quiet when fine (F16): only "off" earns a full card.
-            if (!state.gateEnabled) GateOffCard(onTurnedOn = vm::refresh)
-            if (state.banksToPin.isNotEmpty()) BankShortcutCard(state.banksToPin)
-            Text("Your phone, last 7 days", style = MaterialTheme.typography.titleLarge)
+            // The greeting, gate status and bank shortcuts moved to the Today tab (D-021).
+            Text("Your phone, last 7 days", style = MaterialTheme.typography.headlineMedium)
             Text(
                 "Days start at 04:00, so late-night use counts toward the day before.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -126,7 +119,7 @@ private fun ViewTabs(current: UsageView, onSelect: (UsageView) -> Unit) {
 }
 
 @Composable
-private fun NotificationPermission() {
+internal fun NotificationPermission() {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val context = LocalContext.current
     LaunchedEffect(Unit) {
@@ -140,7 +133,7 @@ private fun NotificationPermission() {
 
 /** Gate status when all is well: a glance, not a card. Today's numbers are in the findings. */
 @Composable
-private fun GateOnPill() {
+internal fun GateOnPill() {
     val c = MaterialTheme.colorScheme
     Row(
         Modifier.background(c.tertiaryContainer, CircleShape).padding(horizontal = 12.dp, vertical = 6.dp)
@@ -153,8 +146,9 @@ private fun GateOnPill() {
     }
 }
 
+/** Fail loudly, stay quiet when fine (F16): only "off" earns a full card. */
 @Composable
-private fun GateOffCard(onTurnedOn: () -> Unit) {
+internal fun GateOffCard(onTurnedOn: () -> Unit) {
     val context = LocalContext.current
     SoftCard(tone = CardTone.Accent) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -180,7 +174,7 @@ private fun GateOffCard(onTurnedOn: () -> Unit) {
  * can step aside, and closes itself (D-020). The card goes once each shortcut is on the home screen.
  */
 @Composable
-private fun BankShortcutCard(banks: List<BankApp>) {
+internal fun BankShortcutCard(banks: List<BankApp>) {
     val context = LocalContext.current
     SoftCard(tone = CardTone.Lavender) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -267,7 +261,7 @@ private fun AppTable(apps: List<AppRow>, filter: AppFilter, onSelect: (AppFilter
 }
 
 /** A friendly hello that also notices the hour: after midnight it nudges toward sleep (G7). */
-private fun greeting(now: LocalTime): String = when (now.hour) {
+internal fun greeting(now: LocalTime): String = when (now.hour) {
     in 4..11 -> "Good morning ☀️"
     in 12..17 -> "Good afternoon 🌤️"
     in 18..23 -> "Good evening 🌙"
