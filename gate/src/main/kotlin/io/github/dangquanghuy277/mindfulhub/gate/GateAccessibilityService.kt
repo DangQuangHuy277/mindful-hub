@@ -101,7 +101,7 @@ class GateAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         deps = (application as GateHost).gateDeps
-        overlay = GateOverlay(this)
+        overlay = GateOverlay(this, QuietBehind(this)) { !rowsLoaded || settingsOn(deps.clock.dayOf(Instant.now())).on(Feature.QUIET_BEHIND) }
         val imes = getSystemService(InputMethodManager::class.java).enabledInputMethodList.map { it.packageName }
         ignored = setOf(packageName, "android", "com.android.systemui") + imes
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -581,7 +581,7 @@ class GateAccessibilityService : AccessibilityService() {
             logScope.launch { stamps.insertStatus(GateStatusEntity(ts = System.currentTimeMillis(), state = "DESTROYED")) }
         }
         connected = null
-        overlay.dismiss()
+        overlay.destroy()
         main.removeCallbacksAndMessages(null)
         main.removeCallbacks(confirmLeave)
         scope.cancel()

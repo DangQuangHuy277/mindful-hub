@@ -457,5 +457,17 @@ tests now set Messenger up explicitly. Facebook (the feed) is still STRICT.
 2026-10-19. **Decided (your call).** Messages go through Messenger, so on Facebook "Message
 someone" and "See something someone sent me" were almost never the real reason. Facebook now
 offers: check a group or page · post something · honestly, just bored. Instagram and Threads keep
-both messaging reasons, since their DMs are in the app. Older Facebook rows logged with those two
+both messaging reasons, since their DMs are in the app. YouTube drops "See something someone sent
+me" too: a video someone sent is "Watch a specific video", which it already offers. Older Facebook rows logged with those two
 purposes stay as they are.
+
+## D-024: The app behind the gate goes quiet
+2026-10-19. **Decided (your call).** The gate covered the screen, but the video underneath kept
+playing out loud, and "never mind" sent a still-playing YouTube home, which Android turns into a
+picture-in-picture window. While any gate screen is up, the gate now holds short-term audio focus,
+so players pause. An app that is still starting takes focus back when its video starts, so the
+gate asks again (twice), then mutes media volume as a last resort. It lets go 0.7 s after the
+screen closes, so "never mind" is already home by then. Music you're listening to pauses for the
+few seconds the gate is up. It has a switch, "Quiet behind the gate".
+Checked on the S22 (Android 15): focus is granted, YouTube pauses, never mind lands on the home
+screen with no small window. YouTube doesn't start again by itself after you continue: tap play.

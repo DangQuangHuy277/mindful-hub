@@ -30,6 +30,12 @@ class GatePolicyTest {
     }
 
     @Test
+    fun `youtube folds a sent video into watching a specific one`() {
+        val d = assertIs<GateDecision.Prompt>(GatePolicy.decide("com.google.android.youtube", Screen.APP, now, emptyMap(), 0))
+        assertEquals(listOf(Purpose.WATCH_SPECIFIC, Purpose.POST, Purpose.JUST_BORED), d.purposes)
+    }
+
+    @Test
     fun `instagram keeps the messaging reasons`() {
         val d = assertIs<GateDecision.Prompt>(GatePolicy.decide("com.instagram.android", Screen.APP, now, emptyMap(), 0))
         assertEquals(listOf(Purpose.GROUP_TIME, Purpose.MESSAGE, Purpose.SHARED_ITEM, Purpose.POST, Purpose.JUST_BORED), d.purposes)

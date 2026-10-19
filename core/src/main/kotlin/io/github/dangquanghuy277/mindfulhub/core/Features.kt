@@ -30,6 +30,7 @@ enum class Feature(
     POSTCARD("F31 + F53", "Postcard to tomorrow", "At night, write one line about a good thing tomorrow. It waits for you in the morning.", FeatureStatus.APPROVED),
     SLEEP_QUEST("F13 + F44", "Sleep-shift quest", "Moves your wake time 15 min earlier every 3 days, told as chapters.", FeatureStatus.TRIAL),
     MORNING_RECEIPT("F61", "Morning receipt", "A calm card each morning: last night against your own best night.", FeatureStatus.TRIAL),
+    QUIET_BEHIND("D-024", "Quiet behind the gate", "While a gate screen is up, the video or music behind it pauses (or is muted), then comes back.", FeatureStatus.APPROVED),
     CALM_LINKS("F17", "Calm links", "One card of finite, calm sources (HN, VnExpress, Barça news, Substack). Group time (F18) waits for your group links.", FeatureStatus.TRIAL),
     ;
 

@@ -183,11 +183,14 @@ object GatePolicy {
 
     /** Facebook's own app, whose messages live in Messenger (D-023). */
     const val FACEBOOK = "com.facebook.katana"
+    const val YOUTUBE = "com.google.android.youtube"
 
     fun purposesFor(profile: AppProfile, pkg: String? = null): List<Purpose> = when (profile) {
         // Messaging happens in Messenger, so Facebook never offers the two messaging reasons (D-023).
         AppProfile.STRICT if pkg == FACEBOOK -> listOf(Purpose.GROUP_TIME, Purpose.POST, Purpose.JUST_BORED)
         AppProfile.STRICT -> listOf(Purpose.GROUP_TIME, Purpose.MESSAGE, Purpose.SHARED_ITEM, Purpose.POST, Purpose.JUST_BORED)
+        // A video someone sent is still "a specific video" (D-023).
+        AppProfile.LIGHT if pkg == YOUTUBE -> listOf(Purpose.WATCH_SPECIFIC, Purpose.POST, Purpose.JUST_BORED)
         AppProfile.LIGHT -> listOf(Purpose.WATCH_SPECIFIC, Purpose.SHARED_ITEM, Purpose.POST, Purpose.JUST_BORED)
         AppProfile.GAME -> listOf(Purpose.PLAY_MATCHES, Purpose.JUST_BORED)
         AppProfile.MESSAGING -> listOf(Purpose.MESSAGE, Purpose.SHARED_ITEM)
