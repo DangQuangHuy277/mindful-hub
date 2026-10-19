@@ -97,8 +97,21 @@ fun GatePrompt(
     night: NightPhase = NightPhase.DAY,
     wakeText: String = "",
     onPostcard: (String) -> Unit = {},
+    /** Reports where the prompt is, so the outcome says where you decided (v4). */
+    onStage: (String) -> Unit = {},
 ) {
     var phase by remember { mutableStateOf<Phase>(if (prompt.postcardDue) Phase.Postcard else Phase.Countdown) }
+    LaunchedEffect(phase) {
+        onStage(
+            when (phase) {
+                Phase.Postcard -> "POSTCARD"
+                Phase.Countdown -> "COUNTDOWN"
+                Phase.ChoosePurpose -> "PURPOSE"
+                Phase.Bored -> "BORED"
+                is Phase.ChooseBox -> "BOX"
+            },
+        )
+    }
     GateSurface {
         Text(appLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(line, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)

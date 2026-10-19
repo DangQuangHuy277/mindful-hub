@@ -59,9 +59,16 @@ data class GateEventEntity(
     /** ALLOW / PROMPT / BLOCK */
     val decision: String,
     val delayMs: Long,
-    /** PROCEEDED / ABANDONED ("Never mind" or left during the prompt) / BLOCKED; null while open. */
+    /**
+     * PROCEEDED / ABANDONED ("Never mind" or left during the prompt) / BLOCKED; null while open.
+     * LOST = still open when the gate (re)connected: it died with the prompt up.
+     */
     val outcome: String? = null,
     val logicalDay: String,
+    /** When the outcome was set, so time-to-decide can be measured against the delay (v4). */
+    val outcomeAt: Long? = null,
+    /** Where on the prompt it was decided: POSTCARD / COUNTDOWN / PURPOSE / BORED / BOX / LOCKED (v4). */
+    val outcomeStage: String? = null,
 )
 
 /** A session opened through the gate (G1, G3, G4). */
@@ -74,19 +81,74 @@ data class SessionEntity(
     val start: Long,
     val plannedEnd: Long,
     val end: Long? = null,
-    /** TIMEBOX / USER / SCREEN_OFF */
+    /**
+     * TIMEBOX / USER / RESTORED. RESTORED = found overdue after a gate restart and closed at its
+     * planned end; the real end is unknown here (app_event has it).
+     */
     val endedBy: String? = null,
     /** 1 = 👍, 0 = 😐, -1 = 👎 */
     val rating: Int? = null,
+    /** The prompt or lock this session came through (v4). */
+    val gateEventId: Long? = null,
 )
+
+/**
+ * When the gate was on and off (v4): CONNECTED, DESTROYED, PAUSED / RESUMED / RESUME_FAILED (bank
+ * pause, D-020), HEALTH_ALERT. Without it, "no prompts" and "gate off" look the same.
+ */
+@Entity(tableName = "gate_status", indices = [Index("ts")])
+data class GateStatusEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val ts: Long,
+    val state: String,
+    /** The bank app for a pause, the reason for an alert. */
+    val detail: String? = null,
+)
+
+/**
+ * Which build and gate config were live from [ts] on (v4). The gate's profiles and delays live in
+ * code, not in `setting`, so this is how a change like D-022 shows up in the data.
+ */
+@Entity(tableName = "build_stamp")
+data class BuildStampEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val ts: Long,
+    val versionName: String,
+    val gitSha: String,
+    val installedAt: Long,
+    /** `GateSettings().toString()`: profiles, delays, escalation, pause list. */
+    val gateConfig: String,
+)
+
+@Dao
+interface StampDao {
+    @Insert
+    suspend fun insertStatus(e: GateStatusEntity): Long
+
+    @Query("SELECT * FROM build_stamp ORDER BY id DESC LIMIT 1")
+    suspend fun lastBuild(): BuildStampEntity?
+
+    @Insert
+    suspend fun insertBuild(e: BuildStampEntity): Long
+}
+
+/** Writes a stamp only when the build, install or gate config differs from the last one. */
+suspend fun StampDao.stampIfChanged(e: BuildStampEntity) {
+    val last = lastBuild()
+    if (last == null || last.copy(id = 0, ts = 0) != e.copy(id = 0, ts = 0)) insertBuild(e)
+}
 
 @Dao
 interface GateDao {
     @Insert
     suspend fun insertEvent(e: GateEventEntity): Long
 
-    @Query("UPDATE gate_event SET outcome = :outcome WHERE id = :id")
-    suspend fun setOutcome(id: Long, outcome: String)
+    @Query("UPDATE gate_event SET outcome = :outcome, outcomeAt = :at, outcomeStage = :stage WHERE id = :id")
+    suspend fun setOutcome(id: Long, outcome: String, at: Long, stage: String?)
+
+    /** Prompts the gate died with (outcome still null), marked LOST when it (re)connects. */
+    @Query("UPDATE gate_event SET outcome = 'LOST', outcomeAt = :at WHERE outcome IS NULL AND ts < :at")
+    suspend fun closeLost(at: Long)
 
     @Query("SELECT COUNT(*) FROM gate_event WHERE pkg = :pkg AND logicalDay = :day AND decision = 'PROMPT'")
     suspend fun promptsOn(pkg: String, day: String): Int
@@ -137,9 +199,11 @@ data class GateSummaryRow(val decision: String, val outcome: String?, val n: Int
         // D-021 features, one table each (GoodSideData.kt).
         SettingEntity::class, GoodThingEntity::class, PlanItemEntity::class, SetupKitEntity::class,
         WeeklyReviewEntity::class, PostcardEntity::class,
+        // v4: research data (gate on/off, build and config stamps).
+        GateStatusEntity::class, BuildStampEntity::class,
     ],
-    version = 3,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    version = 4,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
 )
 abstract class MindfulDatabase : RoomDatabase() {
     abstract fun appEvents(): AppEventDao
@@ -149,6 +213,7 @@ abstract class MindfulDatabase : RoomDatabase() {
     abstract fun plans(): PlanDao
     abstract fun reviews(): ReviewDao
     abstract fun postcards(): PostcardDao
+    abstract fun stamps(): StampDao
 
     companion object {
         fun create(context: Context): MindfulDatabase =

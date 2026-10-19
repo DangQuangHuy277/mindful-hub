@@ -74,14 +74,34 @@ on decisions. That split is what makes a later move to KMP (A4) a build change, 
 | Table | Key fields | Feeds |
 |---|---|---|
 | `app_event` | ts, pkg, type (FOREGROUND/BACKGROUND/SCREEN_ON/UNLOCK), source (usage/gate) | heatmap, health check |
-| `gate_event` | ts, pkg, screen, decision, delay_ms, outcome (proceeded/abandoned/blocked) | G1, F05 |
-| `session` | id, pkg, intent, timebox_min, start, end, ended_by (timebox/user/screen_off), rating | G1, G3, G4 |
+| `gate_event` | ts, pkg, screen, decision, delay_ms, outcome (proceeded/abandoned/blocked/lost), outcome_at, outcome_stage (postcard/countdown/purpose/bored/box/locked) | G1, F05, tuning the delay |
+| `session` | id, pkg, intent, timebox_min, start, end, ended_by (timebox/user/restored), rating, gate_event_id | G1, G3, G4 |
 | `daily_aggregate` | logical_day, pkg, minutes, opens, unintended_min, after_bedtime_min | review, G7 |
 | `weekly_review` | week, who5[5], missed_anything, one_change, notes | F11, F12, A4 |
 | `plan` | type (IF_THEN/INSTEAD), trigger, text, category (move/people/read/build/rest) | F14, F15 |
 | `setting` | key, value, **effective_from (logical day)** | precommitment (E4, S4), feature switches (D-021) |
-| `good_thing` | ts, category, minutes, note, source (home/gate/plan) | A5, G5 |
+| `good_thing` | ts, category, minutes, note, source (home/gate/plan), gate_event_id | A5, G5 |
+| `gate_status` | ts, state (connected/destroyed/paused/resumed/resume_failed/health_alert), detail | telling "no prompts" from "gate off" |
+| `build_stamp` | ts, version, git sha, installed_at, gate config (profiles, delays, pause list) | which build and gate config were live |
 | `plan_item` · `setup_kit` | week, day, time, category, minutes, title, status · ticked items | F27, F60 |
+
+### Research data (v4, 2026-10-19)
+The app is also a one-person study: the data has to say which features work and how to tune them.
+v4 closed the gaps found in an audit:
+- **Export (A6):** Settings → Your data → *Export all data* writes the whole database to
+  `Downloads/mindful-hub-<date>.db` (`DataExport`, `VACUUM INTO`). It survives an uninstall.
+- **Which config was live:** the gate's profiles and delays are code, not `setting` rows, so each
+  start writes a `build_stamp` row when the git sha, install time or `GateSettings` changed.
+- **Gate on/off:** `gate_status` records connects, destroys, bank pauses and health alerts.
+  `onDestroy` doesn't run when the process is killed; a `CONNECTED` without a `DESTROYED` before it
+  marks that gap.
+- **Joins:** `session.gateEventId` and `good_thing.gateEventId` point to the prompt or lock they
+  came from, instead of matching on package and time.
+- **When and where you decided:** `outcomeAt` and `outcomeStage` on `gate_event`. Prompts still
+  open when the gate (re)connects are closed as `LOST`.
+- **Corrected values:** a bed scroll from the lock sets the lock's outcome to `PROCEEDED` (it stayed
+  `BLOCKED`); sessions found overdue after a restart end as `RESTORED`, not `TIMEBOX`, since their
+  real end is unknown there (`app_event` has it). `SCREEN_OFF` was never written and is gone.
 | `postcard` | night (logical day), text | F31 + F53 |
 
 ## Design rules that aren't obvious

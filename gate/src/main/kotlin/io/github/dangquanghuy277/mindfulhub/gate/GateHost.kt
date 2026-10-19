@@ -12,6 +12,7 @@ import io.github.dangquanghuy277.mindfulhub.data.GateDao
 import io.github.dangquanghuy277.mindfulhub.data.GoodThingDao
 import io.github.dangquanghuy277.mindfulhub.data.PostcardDao
 import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
+import io.github.dangquanghuy277.mindfulhub.data.StampDao
 import java.time.Instant
 
 /** What the gate needs from the app. The Application implements [GateHost] (manual DI, S7). */
@@ -25,6 +26,8 @@ class GateDeps(
     val postcards: PostcardDao,
     /** F29: minutes in STRICT apps so far today, from the system's usage history. */
     val feedMinutesToday: suspend (now: Instant) -> Double,
+    /** v4: gate on/off timeline (`gate_status`). */
+    val stamps: StampDao,
 )
 
 interface GateHost {

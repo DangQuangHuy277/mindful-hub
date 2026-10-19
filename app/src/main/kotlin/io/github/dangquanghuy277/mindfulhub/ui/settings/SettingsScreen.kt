@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,6 +52,8 @@ data class SettingsUiState(
     val settings: Settings = Settings(),
     /** key to the logical day a waiting (loosening) change starts. */
     val pending: Map<String, Pair<String, LocalDate>> = emptyMap(),
+    /** A6: what the last export did, shown under its button. */
+    val exportNote: String? = null,
 )
 
 class SettingsViewModel(private val c: AppContainer) : ViewModel() {
@@ -60,7 +63,16 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun refresh() {
         viewModelScope.launch {
             val today = c.clock.dayOf(Instant.now())
-            _state.value = SettingsUiState(today, c.settingsStore.on(today.plusDays(1)), c.settingsStore.pending(today))
+            _state.value = SettingsUiState(today, c.settingsStore.on(today.plusDays(1)), c.settingsStore.pending(today), _state.value.exportNote)
+        }
+    }
+
+    fun export() {
+        _state.value = _state.value.copy(exportNote = "Exporting…")
+        viewModelScope.launch {
+            val note = runCatching { c.exportData() }
+                .fold({ "Saved to Downloads/$it" }, { "Export failed: ${it.message}" })
+            _state.value = _state.value.copy(exportNote = note)
         }
     }
 
@@ -127,6 +139,18 @@ fun SettingsScreen(vm: SettingsViewModel) {
                         "Once a night during wind-down. For the nights scrolling helps you fall asleep, until we've checked the research.",
                         s.allowBedScroll, pendingText(state, SettingsCodec.BED_SCROLL),
                     ) { vm.set(SettingsCodec.BED_SCROLL, it.toString()) }
+                }
+            }
+
+            Text("Your data", style = MaterialTheme.typography.titleLarge)
+            SoftCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Everything the app has recorded, as one SQLite file in Downloads. It stays there if the app is uninstalled.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FilledTonalButton(onClick = vm::export) { Text("Export all data") }
+                    state.exportNote?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
                 }
             }
         }

@@ -19,7 +19,11 @@ import io.github.dangquanghuy277.mindfulhub.core.FeedBudget
 import io.github.dangquanghuy277.mindfulhub.core.GateSettings
 import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
 import io.github.dangquanghuy277.mindfulhub.core.LogicalDayClock
+import io.github.dangquanghuy277.mindfulhub.data.BuildStampEntity
+import io.github.dangquanghuy277.mindfulhub.data.DataExport
+import io.github.dangquanghuy277.mindfulhub.data.GateStatusEntity
 import io.github.dangquanghuy277.mindfulhub.data.MindfulDatabase
+import io.github.dangquanghuy277.mindfulhub.data.stampIfChanged
 import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
 import io.github.dangquanghuy277.mindfulhub.data.UsageRepository
 import io.github.dangquanghuy277.mindfulhub.data.UsageStatsImporter
@@ -32,9 +36,14 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** Manual DI (STACK-OPTIONS.md S7): one container, created once per process. */
 class AppContainer(context: Context) {
+    private val app = context.applicationContext
     private val db = MindfulDatabase.create(context)
     val importer = UsageStatsImporter(context, db.appEvents())
     val usage = UsageRepository(db.appEvents())
@@ -48,6 +57,21 @@ class AppContainer(context: Context) {
     val plans = db.plans()
     val reviews = db.reviews()
     val postcards = db.postcards()
+    val stamps = db.stamps()
+
+    /** A6: the whole database to Downloads; returns the file name. */
+    suspend fun exportData(): String = DataExport.toDownloads(app, db)
+
+    /** Records the build and gate config, if either changed since the last start (v4). */
+    suspend fun stampBuild() {
+        val info = app.packageManager.getPackageInfo(app.packageName, 0)
+        stamps.stampIfChanged(
+            BuildStampEntity(
+                ts = System.currentTimeMillis(), versionName = info.versionName.orEmpty(), gitSha = BuildConfig.GIT_SHA,
+                installedAt = info.lastUpdateTime, gateConfig = gateSettings.toString(),
+            ),
+        )
+    }
     val strictApps: Set<String> = gateSettings.profiles.filterValues { it == AppProfile.STRICT }.keys
 
     /** F29: minutes in STRICT apps so far today. Imports the newest system events first. */
@@ -64,12 +88,13 @@ class MindfulApp : Application(), GateHost {
         private set
 
     override val gateDeps: GateDeps by lazy {
-        with(container) { GateDeps(gateDao, clock, gateSettings, settingsStore, goodThings, postcards, ::feedMinutesToday) }
+        with(container) { GateDeps(gateDao, clock, gateSettings, settingsStore, goodThings, postcards, ::feedMinutesToday, stamps) }
     }
 
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { runCatching { container.stampBuild() } }
         BankLaunchActivity.publishShortcuts(this, container.gateSettings)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(HEALTH_CHANNEL, "Gate health", NotificationManager.IMPORTANCE_HIGH),
@@ -106,7 +131,15 @@ class UsageImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         val gateSilent = c.gateDao.countBetween(from.toEpochMilli(), to.toEpochMilli()) == 0
         // Off on purpose while a banking app is in front (D-020): not a failure.
         if (GatePauseService.pausedFor != null) return Result.success()
-        if (!GateStatus.isEnabled(applicationContext) || (gated && gateSilent)) notifyGateDown()
+        val down = when {
+            !GateStatus.isEnabled(applicationContext) -> "DISABLED"
+            gated && gateSilent -> "SILENT"
+            else -> null
+        }
+        if (down != null) {
+            c.stamps.insertStatus(GateStatusEntity(ts = to.toEpochMilli(), state = "HEALTH_ALERT", detail = down))
+            notifyGateDown()
+        }
         return Result.success()
     }
 

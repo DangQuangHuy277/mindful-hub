@@ -3,6 +3,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/** The commit this build came from, "-dirty" with uncommitted changes; stamped into `build_stamp`. */
+val gitSha: String = runCatching {
+    val sha = providers.exec { commandLine("git", "rev-parse", "--short", "HEAD") }.standardOutput.asText.get().trim()
+    val dirty = providers.exec { commandLine("git", "status", "--porcelain") }.standardOutput.asText.get().isNotBlank()
+    if (dirty) "$sha-dirty" else sha
+}.getOrDefault("unknown")
+
 android {
     namespace = "io.github.dangquanghuy277.mindfulhub"
     compileSdk = 37
@@ -13,6 +20,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
     }
 
     buildTypes {
@@ -22,7 +30,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 }
 
 dependencies {

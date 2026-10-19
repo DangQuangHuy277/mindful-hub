@@ -16,6 +16,11 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.github.dangquanghuy277.mindfulhub.core.AppProfile
+import io.github.dangquanghuy277.mindfulhub.data.GateStatusEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Keeps the gate off while a banking app is in front (D-020).
@@ -115,7 +120,9 @@ class GatePauseService : Service() {
     private fun resume() {
         main.removeCallbacks(poll)
         pausedFor = null
-        if (GateStatus.turnOn(this)) {
+        val on = GateStatus.turnOn(this)
+        logStatus(if (on) "RESUMED" else "RESUME_FAILED", pkg)
+        if (on) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
             // Can't switch it back ourselves: leave a notification that takes you to Settings.
@@ -126,6 +133,12 @@ class GatePauseService : Service() {
     }
 
     private fun settings() = (application as GateHost).gateDeps.settings
+
+    /** Outlives this service: the row must land even as it stops itself. */
+    private fun logStatus(state: String, detail: String) {
+        val stamps = (application as GateHost).gateDeps.stamps
+        logScope.launch { stamps.insertStatus(GateStatusEntity(ts = System.currentTimeMillis(), state = state, detail = detail)) }
+    }
 
     private fun pausedNotification() = NotificationCompat.Builder(this, CHANNEL)
         .setSmallIcon(android.R.drawable.ic_media_pause)
@@ -176,6 +189,7 @@ class GatePauseService : Service() {
         private const val HOME_GRACE_MS = 2_000L
         private const val OTHER_GRACE_MS = 60_000L
         private const val LAUNCH_TIMEOUT_MS = 15_000L
+        private val logScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         /** The banking app the gate is paused for, or null. Read by the hourly health check. */
         @Volatile

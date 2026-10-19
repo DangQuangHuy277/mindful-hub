@@ -34,6 +34,7 @@ import io.github.dangquanghuy277.mindfulhub.data.PostcardEntity
 import io.github.dangquanghuy277.mindfulhub.data.SessionEntity
 import io.github.dangquanghuy277.mindfulhub.data.SettingEntity
 import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
+import io.github.dangquanghuy277.mindfulhub.data.GateStatusEntity
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -72,6 +73,8 @@ class GateAccessibilityService : AccessibilityService() {
     private var promptingFor: String? = null
     /** The prompt's log row. Written after the prompt is up (N4), so handlers await it. */
     private var promptEventId: Deferred<Long>? = null
+    /** Where the open prompt is (POSTCARD … BOX, or LOCKED), logged with its outcome (v4). */
+    private var promptStage: String? = null
     /** Uptime of the window event that triggered the current decision, for the N4 latency log. */
     private var eventUptime = 0L
     private var lastDetect = 0L
@@ -110,6 +113,12 @@ class GateAccessibilityService : AccessibilityService() {
             }
         }
         refreshFeed() // so the first decision after (re)connecting doesn't wait for it (N4)
+        val at = System.currentTimeMillis()
+        scope.launch {
+            // No prompt can be up yet: any still open died with the last gate.
+            deps.gate.closeLost(at)
+            deps.stamps.insertStatus(GateStatusEntity(ts = at, state = "CONNECTED"))
+        }
         restoreSessions()
         connected = this
     }
@@ -133,7 +142,7 @@ class GateAccessibilityService : AccessibilityService() {
                     sessionIds[e.pkg] = e.id
                     main.postDelayed({ onTimeBoxEnd(session) }, Duration.between(now, session.end).toMillis())
                 } else {
-                    deps.gate.endSession(e.id, e.plannedEnd, "TIMEBOX")
+                    deps.gate.endSession(e.id, e.plannedEnd, "RESTORED")
                 }
             }
             val top = topApp()
@@ -207,7 +216,7 @@ class GateAccessibilityService : AccessibilityService() {
             foreground = prompting
             return@Runnable
         }
-        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id.await(), "ABANDONED") } }
+        promptEventId?.let { setOutcome(it, "ABANDONED") }
         closePrompt()
     }
 
@@ -318,7 +327,8 @@ class GateAccessibilityService : AccessibilityService() {
         }
         promptingFor = pkg
         promptEventId = null
-        // Logged after the screen is up (N4); only the bed-scroll button needs the row.
+        promptStage = "LOCKED"
+        // Logged after the screen is up (N4); the bed-scroll and Instead buttons await the row.
         val eventId = CompletableDeferred<Long>()
         scope.launch { eventId.complete(deps.gate.insertEvent(event(pkg, now, day, "LOCK", 0, "BLOCKED", Screen.APP).copy(screen = d.reason.name))) }
         val label = labelOf(pkg)
@@ -335,9 +345,9 @@ class GateAccessibilityService : AccessibilityService() {
                 budgetMinutes = s.feedBudgetMinutes,
                 night = night.phase,
                 showInstead = s.on(Feature.INSTEAD),
-                onInstead = { doInstead(pkg, null, it) },
+                onInstead = { doInstead(pkg, eventId, it, abandon = false) },
                 onPostcard = { savePostcard(night, it) },
-                onBedScroll = { startSession(pkg, eventId, Purpose.BED_SCROLL, TimeBox("10 min", Duration.ofMinutes(10)), logOutcome = false) },
+                onBedScroll = { startSession(pkg, eventId, Purpose.BED_SCROLL, TimeBox("10 min", Duration.ofMinutes(10))) },
                 onClose = close,
             )
         }
@@ -349,13 +359,18 @@ class GateAccessibilityService : AccessibilityService() {
 
     /**
      * F26: do the thing instead. It's logged as a good thing right away (you can delete it at
-     * home), the open counts as abandoned (a win, G1), and the app closes.
+     * home), linked to the prompt or lock it came from, and the app closes. From a prompt the open
+     * counts as abandoned (a win, G1); a lock stays BLOCKED.
      */
-    private fun doInstead(pkg: String, eventId: Deferred<Long>?, item: InsteadItem) {
+    private fun doInstead(pkg: String, eventId: Deferred<Long>, item: InsteadItem, abandon: Boolean = true) {
+        if (abandon) setOutcome(eventId, "ABANDONED")
+        val at = System.currentTimeMillis()
         scope.launch {
-            eventId?.let { deps.gate.setOutcome(it.await(), "ABANDONED") }
             deps.goodThings.insert(
-                GoodThingEntity(ts = System.currentTimeMillis(), category = item.category.name, minutes = item.minutes, note = item.text, source = "gate"),
+                GoodThingEntity(
+                    ts = at, category = item.category.name, minutes = item.minutes, note = item.text, source = "gate",
+                    gateEventId = eventId.await(),
+                ),
             )
         }
         closePrompt()
@@ -393,8 +408,9 @@ class GateAccessibilityService : AccessibilityService() {
     private fun pause(pkg: String, launching: Boolean = false): Boolean {
         Log.i(TAG, "pausing for $pkg${if (launching) " (before launch)" else ""}")
         if (!GatePauseService.start(this, pkg, launching)) return false
-        promptEventId?.let { id -> scope.launch { deps.gate.setOutcome(id.await(), "ABANDONED") } }
+        promptEventId?.let { setOutcome(it, "ABANDONED") }
         closePrompt()
+        logScope.launch { deps.stamps.insertStatus(GateStatusEntity(ts = System.currentTimeMillis(), state = "PAUSED", detail = pkg)) }
         disableSelf()
         return true
     }
@@ -429,10 +445,11 @@ class GateAccessibilityService : AccessibilityService() {
         // the prompt awaits the row before setting its outcome.
         val eventId = CompletableDeferred<Long>()
         promptEventId = eventId
+        promptStage = if (d.postcardDue) "POSTCARD" else "COUNTDOWN"
         scope.launch { eventId.complete(deps.gate.insertEvent(event(pkg, now, day, "PROMPT", d.delay.toMillis(), null))) }
         val label = labelOf(pkg)
         val neverMind = {
-            scope.launch { deps.gate.setOutcome(eventId.await(), "ABANDONED") }
+            setOutcome(eventId, "ABANDONED")
             closePrompt()
             performGlobalAction(GLOBAL_ACTION_HOME)
         }
@@ -448,6 +465,7 @@ class GateAccessibilityService : AccessibilityService() {
                 night = night.phase,
                 wakeText = timeText(night.wake),
                 onPostcard = { savePostcard(night, it) },
+                onStage = { promptStage = it },
             )
         }
         Log.i(TAG, "prompt for $pkg shown ${SystemClock.uptimeMillis() - eventUptime} ms after the window event (N4 target ≤300)")
@@ -456,21 +474,30 @@ class GateAccessibilityService : AccessibilityService() {
     private fun closePrompt() {
         promptingFor = null
         promptEventId = null
+        promptStage = null
         overlay.dismiss()
     }
 
-    private fun startSession(pkg: String, eventId: Deferred<Long>, purpose: Purpose, box: TimeBox, logOutcome: Boolean = true) {
+    /** Sets a prompt's or lock's outcome with the time and the stage it was decided at (v4). */
+    private fun setOutcome(eventId: Deferred<Long>, outcome: String) {
+        val at = System.currentTimeMillis()
+        val stage = promptStage
+        scope.launch { deps.gate.setOutcome(eventId.await(), outcome, at, stage) }
+    }
+
+    /** A bed scroll from the lock screen turns the lock's BLOCKED into PROCEEDED too. */
+    private fun startSession(pkg: String, eventId: Deferred<Long>, purpose: Purpose, box: TimeBox) {
         val start = Instant.now()
         val session = ActiveSession(pkg, purpose, start, start.plus(box.length))
         sessions[pkg] = session
         leftAt.remove(pkg)
+        setOutcome(eventId, "PROCEEDED")
         closePrompt()
         scope.launch {
-            if (logOutcome) deps.gate.setOutcome(eventId.await(), "PROCEEDED")
             sessionIds[pkg] = deps.gate.insertSession(
                 SessionEntity(
                     pkg = pkg, purpose = purpose.name, timeBoxMin = box.length.toMinutes().toInt(),
-                    start = start.toEpochMilli(), plannedEnd = session.end.toEpochMilli(),
+                    start = start.toEpochMilli(), plannedEnd = session.end.toEpochMilli(), gateEventId = eventId.await(),
                 ),
             )
         }
@@ -535,6 +562,8 @@ class GateAccessibilityService : AccessibilityService() {
         /** The budget check must not delay the prompt past N4 (≤300 ms); it falls back to the last value. */
         private const val BUDGET_TIMEOUT_MS = 250L
         private val HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+        /** For rows that must land after [scope] is cancelled (pause, destroy). */
+        private val logScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         /** The connected gate, if any. Same process as the app, so the bank shortcut can reach it. */
         @Volatile
@@ -547,6 +576,10 @@ class GateAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        if (::deps.isInitialized) {
+            val stamps = deps.stamps
+            logScope.launch { stamps.insertStatus(GateStatusEntity(ts = System.currentTimeMillis(), state = "DESTROYED")) }
+        }
         connected = null
         overlay.dismiss()
         main.removeCallbacksAndMessages(null)

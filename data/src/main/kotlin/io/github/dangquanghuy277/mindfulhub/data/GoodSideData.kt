@@ -88,6 +88,8 @@ data class GoodThingEntity(
     val note: String = "",
     /** home / gate / plan */
     val source: String = "home",
+    /** For source "gate": the prompt or lock it was chosen on (v4). */
+    val gateEventId: Long? = null,
 )
 
 @Dao
