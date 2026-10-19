@@ -115,7 +115,10 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
             }
             val usedBanks = sessions.filter { !it.start.isBefore(now.minus(Duration.ofDays(7))) }.map { it.pkg }.toSet()
             val pinned = BankLaunchActivity.pinned(app)
-            val banks = c.gateSettings.pauseFor.filter { it in usedBanks && it !in pinned }.map { BankApp(it, label(it)) }
+            // Only banks still installed: usage history remembers uninstalled ones (TCBS, 2026-10-19).
+            val banks = c.gateSettings.pauseFor
+                .filter { it in usedBanks && it !in pinned && app.packageManager.getLaunchIntentForPackage(it) != null }
+                .map { BankApp(it, label(it)) }
             val feedUsed = if (s.on(Feature.FEED_BUDGET)) {
                 FeedBudget.usedMinutes(sessions, c.strictApps, c.clock.startOf(today), now)
             } else {
