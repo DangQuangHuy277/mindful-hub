@@ -170,9 +170,9 @@ class GoodSideTest {
 
     @Test
     fun `instead items fit the moment, and bedtime never offers the lit screen`() {
-        assertTrue(InsteadMenu.forMoment(Moment.QUICK).all { it.minutes <= 2 })
-        assertTrue(InsteadMenu.forMoment(Moment.LONG).all { it.minutes >= 15 })
-        val bed = InsteadMenu.forMoment(Moment.LONG, NightPhase.AFTER_BEDTIME)
+        assertTrue(InsteadMenu.forMoment(Moment.QUICK).all { it.minutes <= 5 })
+        assertTrue(InsteadMenu.forMoment(Moment.LONG).all { it.minutes > 15 })
+        val bed = InsteadMenu.forMoment(Moment.LONG, InsteadContext(night = NightPhase.AFTER_BEDTIME))
         assertTrue(bed.none { it.action is InsteadAction.OpenApp })
         assertTrue(InsteadMenu.all.none { it.text.lowercase().startsWith("don't") })
     }

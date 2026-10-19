@@ -472,3 +472,28 @@ few seconds the gate is up. No switch (your call): it's part of the gate, always
 to try.
 Checked on the S22 (Android 15): focus is granted, YouTube pauses, never mind lands on the home
 screen with no small window. YouTube doesn't start again by itself after you continue: tap play.
+
+## D-025: The "just bored" list fits your day and learns what you pick
+2026-10-19. **Decided (your call, after an interview).** The list was the same at the office as
+on a Sunday. Now:
+- **Your week** (Settings → Your week; defaults from the interview): office Mon–Fri 10:00–19:00
+  (your hours move, so they're editable), lunch 11:45–13:00 (team lunch can start 11:45), dinner
+  19:30–20:30. Weekends and outside work hours count as free time.
+- **At work** the only time chip is 1–5 min: stretch / water / a floor of stairs, slow breaths,
+  look at something far away. **At lunch** (up to ~30 min): eyes closed 15 min, one saved
+  article, eat with the team with your phone in your pocket, plus the quick ones. **Free time**:
+  push-ups + plank (5 min), a 15-min bodyweight circuit, lc-trainer, the next coding step,
+  reading, calling someone. Night is unchanged (D-021).
+- **Exercise timing.** No push-ups or circuit from the start of a meal until an hour after it,
+  or in the last 90 min before bedtime (with 02:00 bed, until about 00:30). Evidence: a
+  meta-analysis of 23 studies found evening exercise doesn't harm sleep; only *vigorous* exercise
+  ending within ~1 h of bed *might* (Stutz, Eiholzer & Spengler 2019, *Sports Medicine*
+  49:269–287, healthy adults, tentative signal), so 90 min keeps a margin. The after-meal hour is
+  common guidance, not a trial. A light walk is the opposite case: walking after eating flattens
+  blood sugar (Buffey et al. 2022, *Sports Medicine*, 7 studies, read via news coverage). Short
+  bouts count: "exercise snacks" of ≤5 min at least twice a day improved fitness (BJSM 2025
+  meta-analysis, 11 RCTs, 414 adults, read via the BJSM blog).
+- **Learning** (always on, no switch: your call, a small part of the list). Each item shown is logged in `instead_offer`
+  (schema v5) with the prompt it was on, the day part, the time chip and its position; picking
+  marks it. The order is the pick rate over 30 days with one pick and one skip already counted,
+  so a few offers barely move anything, and nothing is ever hidden.

@@ -13,6 +13,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,7 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.dangquanghuy277.mindfulhub.core.DayPart
 import io.github.dangquanghuy277.mindfulhub.core.GateDecision
+import io.github.dangquanghuy277.mindfulhub.core.InsteadContext
 import io.github.dangquanghuy277.mindfulhub.core.InsteadItem
 import io.github.dangquanghuy277.mindfulhub.core.InsteadMenu
 import io.github.dangquanghuy277.mindfulhub.core.LockReason
@@ -35,25 +38,40 @@ import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
 // Screens for the D-021 features. Each is used only when its switch is on, so the gate core
 // screens in GateScreens.kt stay as they were.
 
+/** What the "just bored" list needs from the gate (D-025): the moment, and where shows and picks go. */
+class InsteadHooks(
+    val ctx: InsteadContext,
+    val onShown: (Moment, List<InsteadItem>) -> Unit,
+    val onPick: (Moment, InsteadItem) -> Unit,
+)
+
 /**
  * F26 + F59: things to *start*, matched to the time you have. Tapping one closes the app and does
  * it (a timer, the dialer, Substack) and logs it as a good thing. At night it offers only things
- * that aren't the lit screen (D-021).
+ * that aren't the lit screen (D-021). D-025: at work the only chip is 1–5 min, and each list is
+ * reported once per chip, so what was offered can be counted against what was picked.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun InsteadPanel(night: NightPhase, onPick: (InsteadItem) -> Unit) {
-    var moment by remember { mutableStateOf(Moment.SHORT) }
+internal fun InsteadPanel(hooks: InsteadHooks) {
+    val ctx = hooks.ctx
+    val moments = InsteadMenu.momentsFor(ctx.part)
+    var moment by remember { mutableStateOf(InsteadMenu.defaultMoment(ctx.part)) }
+    val reported = remember { mutableSetOf<Moment>() }
+    val items = remember(moment) { InsteadMenu.forMoment(moment, ctx) }
+    LaunchedEffect(moment) { if (reported.add(moment)) hooks.onShown(moment, items) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (night == NightPhase.DAY) {
-            Text("How much time do you have?", style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                Moment.entries.forEach { m -> FilterChip(selected = m == moment, onClick = { moment = m }, label = { Text(m.label) }) }
+        if (ctx.night == NightPhase.DAY) {
+            Text(if (ctx.part == DayPart.WORK) "At work: something quick" else "How much time do you have?", style = MaterialTheme.typography.titleSmall)
+            if (moments.size > 1) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                    moments.forEach { m -> FilterChip(selected = m == moment, onClick = { moment = m }, label = { Text(m.label) }) }
+                }
             }
         }
-        InsteadMenu.forMoment(moment, night).forEach { item ->
+        items.forEach { item ->
             PillButton(
-                item.text, onClick = { onPick(item) }, modifier = Modifier.fillMaxWidth(),
+                item.text, onClick = { hooks.onPick(moment, item) }, modifier = Modifier.fillMaxWidth(),
                 emoji = item.category.emoji, tone = PillTone.Mint, alignStart = true,
             )
         }
@@ -99,9 +117,8 @@ fun GateLocked(
     bedtimeText: String,
     wakeText: String,
     budgetMinutes: Int,
-    night: NightPhase,
-    showInstead: Boolean,
-    onInstead: (InsteadItem) -> Unit,
+    /** F26 + F59 is on: things to start instead. */
+    instead: InsteadHooks?,
     onPostcard: (String) -> Unit,
     onBedScroll: () -> Unit,
     onClose: () -> Unit,
@@ -121,9 +138,9 @@ fun GateLocked(
             }
         }
         if (decision.postcardDue) PostcardBox(wakeText, onPostcard)
-        if (showInstead) {
+        if (instead != null) {
             Text("Something to start instead?", style = MaterialTheme.typography.titleSmall)
-            InsteadPanel(night, onInstead)
+            InsteadPanel(instead)
         }
         PillButton("Close $appLabel", onClick = onClose, modifier = Modifier.fillMaxWidth(), emoji = "🌿")
         if (decision.bedScroll) {

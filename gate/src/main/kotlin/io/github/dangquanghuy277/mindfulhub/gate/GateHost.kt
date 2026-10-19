@@ -10,6 +10,7 @@ import io.github.dangquanghuy277.mindfulhub.core.GateSettings
 import io.github.dangquanghuy277.mindfulhub.core.LogicalDayClock
 import io.github.dangquanghuy277.mindfulhub.data.GateDao
 import io.github.dangquanghuy277.mindfulhub.data.GoodThingDao
+import io.github.dangquanghuy277.mindfulhub.data.InsteadOfferDao
 import io.github.dangquanghuy277.mindfulhub.data.PostcardDao
 import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
 import io.github.dangquanghuy277.mindfulhub.data.StampDao
@@ -28,6 +29,8 @@ class GateDeps(
     val feedMinutesToday: suspend (now: Instant) -> Double,
     /** v4: gate on/off timeline (`gate_status`). */
     val stamps: StampDao,
+    /** D-025: what the "just bored" list offered and what was picked. */
+    val insteadOffers: InsteadOfferDao,
 )
 
 interface GateHost {

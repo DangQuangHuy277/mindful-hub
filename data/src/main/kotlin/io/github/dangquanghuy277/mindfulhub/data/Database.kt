@@ -201,9 +201,14 @@ data class GateSummaryRow(val decision: String, val outcome: String?, val n: Int
         WeeklyReviewEntity::class, PostcardEntity::class,
         // v4: research data (gate on/off, build and config stamps).
         GateStatusEntity::class, BuildStampEntity::class,
+        // v5: what the "just bored" list offered and what was picked (D-025, InsteadData.kt).
+        InsteadOfferEntity::class,
     ],
-    version = 4,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
+    version = 5,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4),
+        AutoMigration(from = 4, to = 5),
+    ],
 )
 abstract class MindfulDatabase : RoomDatabase() {
     abstract fun appEvents(): AppEventDao
@@ -214,6 +219,7 @@ abstract class MindfulDatabase : RoomDatabase() {
     abstract fun reviews(): ReviewDao
     abstract fun postcards(): PostcardDao
     abstract fun stamps(): StampDao
+    abstract fun insteadOffers(): InsteadOfferDao
 
     companion object {
         fun create(context: Context): MindfulDatabase =

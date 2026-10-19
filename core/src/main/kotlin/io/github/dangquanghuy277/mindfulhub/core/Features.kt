@@ -60,6 +60,8 @@ data class Settings(
     val sleepQuestStart: LocalDate? = null,
     /** F13: days added by "hold this chapter". */
     val sleepQuestHoldDays: Int = 0,
+    /** D-025: work, lunch and dinner times, for the "just bored" list. */
+    val schedule: Schedule = Schedule(),
 ) {
     fun on(f: Feature): Boolean = f in enabled
 }
@@ -73,9 +75,17 @@ object SettingsCodec {
     const val BED_SCROLL = "allowBedScroll"
     const val QUEST_START = "sleepQuestStart"
     const val QUEST_HOLD = "sleepQuestHoldDays"
+    const val WORK_START = "workStart"
+    const val WORK_END = "workEnd"
+    const val LUNCH_START = "lunchStart"
+    const val LUNCH_END = "lunchEnd"
+    const val DINNER_START = "dinnerStart"
+    const val DINNER_END = "dinnerEnd"
 
     fun decode(values: Map<String, String>): Settings {
         val d = Settings()
+        fun time(key: String, default: LocalTime) = values[key]?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: default
+        val ds = d.schedule
         val enabled = Feature.entries.filter { f -> values[f.key]?.toBooleanStrictOrNull() ?: true }.toSet()
         return Settings(
             enabled = enabled,
@@ -86,6 +96,11 @@ object SettingsCodec {
             allowBedScroll = values[BED_SCROLL]?.toBooleanStrictOrNull() ?: d.allowBedScroll,
             sleepQuestStart = values[QUEST_START]?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             sleepQuestHoldDays = values[QUEST_HOLD]?.toIntOrNull() ?: d.sleepQuestHoldDays,
+            schedule = ds.copy(
+                workStart = time(WORK_START, ds.workStart), workEnd = time(WORK_END, ds.workEnd),
+                lunchStart = time(LUNCH_START, ds.lunchStart), lunchEnd = time(LUNCH_END, ds.lunchEnd),
+                dinnerStart = time(DINNER_START, ds.dinnerStart), dinnerEnd = time(DINNER_END, ds.dinnerEnd),
+            ),
         )
     }
 }

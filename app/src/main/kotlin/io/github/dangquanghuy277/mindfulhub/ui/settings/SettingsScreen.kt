@@ -142,6 +142,23 @@ fun SettingsScreen(vm: SettingsViewModel) {
                 }
             }
 
+            Text("Your week", style = MaterialTheme.typography.titleLarge)
+            SoftCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Monday to Friday. The \"just bored\" list offers only quick things at work, up to half an hour at lunch, and no push-ups for an hour after a meal.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val w = s.schedule
+                    TimeStepper("Work starts", w.workStart, SettingsCodec.WORK_START, state, vm)
+                    TimeStepper("Work ends", w.workEnd, SettingsCodec.WORK_END, state, vm)
+                    TimeStepper("Lunch starts", w.lunchStart, SettingsCodec.LUNCH_START, state, vm)
+                    TimeStepper("Lunch ends", w.lunchEnd, SettingsCodec.LUNCH_END, state, vm)
+                    TimeStepper("Dinner starts", w.dinnerStart, SettingsCodec.DINNER_START, state, vm)
+                    TimeStepper("Dinner ends", w.dinnerEnd, SettingsCodec.DINNER_END, state, vm)
+                }
+            }
+
             Text("Your data", style = MaterialTheme.typography.titleLarge)
             SoftCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,6 +212,15 @@ private fun SwitchRow(title: String, body: String, checked: Boolean, pending: St
         Switch(checked = checked, onCheckedChange = onChange)
     }
 }
+
+/** D-025: a schedule time, in 15-minute steps. Not a rule, so it applies at once. */
+@Composable
+private fun TimeStepper(title: String, value: LocalTime, key: String, state: SettingsUiState, vm: SettingsViewModel) =
+    Stepper(
+        title, value.toString(), pendingText(state, key),
+        onMinus = { vm.set(key, value.minusMinutes(15).toString()) },
+        onPlus = { vm.set(key, value.plusMinutes(15).toString()) },
+    )
 
 @Composable
 private fun Stepper(title: String, value: String, pending: String?, onMinus: () -> Unit, onPlus: () -> Unit) {

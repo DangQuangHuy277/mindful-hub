@@ -58,6 +58,7 @@ class AppContainer(context: Context) {
     val reviews = db.reviews()
     val postcards = db.postcards()
     val stamps = db.stamps()
+    val insteadOffers = db.insteadOffers()
 
     /** A6: the whole database to Downloads; returns the file name. */
     suspend fun exportData(): String = DataExport.toDownloads(app, db)
@@ -88,7 +89,7 @@ class MindfulApp : Application(), GateHost {
         private set
 
     override val gateDeps: GateDeps by lazy {
-        with(container) { GateDeps(gateDao, clock, gateSettings, settingsStore, goodThings, postcards, ::feedMinutesToday, stamps) }
+        with(container) { GateDeps(gateDao, clock, gateSettings, settingsStore, goodThings, postcards, ::feedMinutesToday, stamps, insteadOffers) }
     }
 
     override fun onCreate() {

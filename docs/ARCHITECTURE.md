@@ -192,13 +192,14 @@ one can be turned off today and deleted later.
 |---|---|---|---|---|
 | F32 comeback | `Comeback` (Review.kt) | — | — | `HelloCard` (TodayScreen.kt) |
 | F10 worth-it + left early | `GateBox.leftEarly` | `session` (existing) | `noteLeaving`, `GateStop(askRating)` | `PauseWins.leftEarly` (InsightsView) |
-| F26 + F59 instead | `InsteadMenu`, `Moment` (GoodThings.kt) | `good_thing` | `InsteadPanel`, `doInstead` | — |
+| F26 + F59 instead | `InsteadMenu`, `Moment` (GoodThings.kt), `Schedule`, `DayPart` (DayParts.kt) | `good_thing`, `instead_offer` | `InsteadPanel`, `InsteadHooks`, `doInstead` | "Your week" in Settings |
 | A5 good things | `Category`, `GoodThings` | `good_thing` | — | `GoodLogCard` |
 | F11 + F12 review | `WeekReview`, `UnintendedTime`, `Who5` (Review.kt) | `weekly_review` | — | `ui/review` |
 | F27 + F60 plan + kit | `WeekPlan`, `SetupKit` (Plan.kt) | `plan_item`, `setup_kit` | — | `PlanCard`, `KitCard`, `PlanTodayCard`, `PlanReminders.kt` |
 | F29 feeds budget | `FeedBudget`, `GatePolicy.capTo`, `LockReason.BUDGET` | — (usage history) | `feedMinutes`, `showLocked` | `FeedsCard`, leak line in `WeekCard` |
 | F03 wind-down | `NightClock`, `LockReason.WIND_DOWN`, `Purpose.BED_SCROLL` (Night.kt) | — | `showLocked` | Settings steppers |
 | F31 + F53 postcard | `GateRules.postcardDue` | `postcard` | `PostcardBox`, `savePostcard` | `PostcardCard` |
+| D-025 instead learns | `InsteadMenu.rank`, `OfferStats` | `instead_offer` (InsteadData.kt) | `insteadHooks`, `refreshInsteadStats` | — |
 | F13 + F44 sleep quest (trial) | `SleepQuest`, `Settings.sleepTimes` | — (settings) | — | `QuestCard` |
 | F61 morning receipt (trial) | — | — | — | `receiptFor`, `ReceiptCard` |
 | F17 calm links (trial) | `CalmLinks` (Plan.kt) | — | — | `CalmLinksCard` |

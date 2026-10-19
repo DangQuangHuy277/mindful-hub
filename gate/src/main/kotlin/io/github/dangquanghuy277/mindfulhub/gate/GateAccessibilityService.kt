@@ -19,7 +19,9 @@ import io.github.dangquanghuy277.mindfulhub.core.GateDecision
 import io.github.dangquanghuy277.mindfulhub.core.GatePolicy
 import io.github.dangquanghuy277.mindfulhub.core.GateRules
 import io.github.dangquanghuy277.mindfulhub.core.InsteadAction
+import io.github.dangquanghuy277.mindfulhub.core.InsteadContext
 import io.github.dangquanghuy277.mindfulhub.core.InsteadItem
+import io.github.dangquanghuy277.mindfulhub.core.OfferStats
 import io.github.dangquanghuy277.mindfulhub.core.NightClock
 import io.github.dangquanghuy277.mindfulhub.core.NightPhase
 import io.github.dangquanghuy277.mindfulhub.core.NightState
@@ -30,6 +32,8 @@ import io.github.dangquanghuy277.mindfulhub.core.Settings
 import io.github.dangquanghuy277.mindfulhub.core.TimeBox
 import io.github.dangquanghuy277.mindfulhub.data.GateEventEntity
 import io.github.dangquanghuy277.mindfulhub.data.GoodThingEntity
+import io.github.dangquanghuy277.mindfulhub.data.InsteadOfferEntity
+import io.github.dangquanghuy277.mindfulhub.data.toStats
 import io.github.dangquanghuy277.mindfulhub.data.PostcardEntity
 import io.github.dangquanghuy277.mindfulhub.data.SessionEntity
 import io.github.dangquanghuy277.mindfulhub.data.SettingEntity
@@ -98,6 +102,8 @@ class GateAccessibilityService : AccessibilityService() {
     /** Feeds minutes used today and when they were read (F29). A fresh value skips the wait. */
     private var feedCache: Pair<Instant, Double>? = null
     private var feedRefresh: Job? = null
+    /** D-025: offers and picks per item, refreshed after each pick. */
+    private var insteadStats: Map<String, OfferStats> = emptyMap()
 
     override fun onServiceConnected() {
         deps = (application as GateHost).gateDeps
@@ -112,6 +118,7 @@ class GateAccessibilityService : AccessibilityService() {
                 rowsLoaded = true
             }
         }
+        scope.launch { refreshInsteadStats() }
         refreshFeed() // so the first decision after (re)connecting doesn't wait for it (N4)
         val at = System.currentTimeMillis()
         scope.launch {
@@ -343,9 +350,7 @@ class GateAccessibilityService : AccessibilityService() {
                 bedtimeText = timeText(night.bed),
                 wakeText = timeText(night.wake),
                 budgetMinutes = s.feedBudgetMinutes,
-                night = night.phase,
-                showInstead = s.on(Feature.INSTEAD),
-                onInstead = { doInstead(pkg, eventId, it, abandon = false) },
+                instead = insteadHooks(pkg, eventId, now, s, night, abandon = false),
                 onPostcard = { savePostcard(night, it) },
                 onBedScroll = { startSession(pkg, eventId, Purpose.BED_SCROLL, TimeBox("10 min", Duration.ofMinutes(10))) },
                 onClose = close,
@@ -355,6 +360,49 @@ class GateAccessibilityService : AccessibilityService() {
 
     private fun savePostcard(night: NightState, text: String) {
         scope.launch { deps.postcards.save(PostcardEntity(night.night.toString(), text, System.currentTimeMillis())) }
+    }
+
+    /**
+     * The "just bored" list for this open (D-025): the part of the day, how long until bed, and what
+     * you picked lately (always on, no switch). Shows and picks are logged against the prompt.
+     */
+    private fun insteadHooks(pkg: String, eventId: Deferred<Long>, now: Instant, s: Settings, night: NightState, abandon: Boolean): InsteadHooks? {
+        if (!s.on(Feature.INSTEAD)) return null
+        val local = now.atZone(ZoneId.systemDefault()).toLocalDateTime()
+        val part = s.schedule.partAt(local)
+        val ctx = InsteadContext(
+            part = part, night = night.phase, now = local.toLocalTime(), schedule = s.schedule,
+            minutesToBed = Duration.between(now, night.bed).toMinutes(),
+            stats = insteadStats,
+        )
+        val partName = if (night.phase == NightPhase.DAY) part.name else "NIGHT"
+        return InsteadHooks(
+            ctx,
+            onShown = { moment, items ->
+                val at = System.currentTimeMillis()
+                scope.launch {
+                    val id = eventId.await()
+                    deps.insteadOffers.insertAll(
+                        items.mapIndexed { i, item ->
+                            InsteadOfferEntity(ts = at, gateEventId = id, dayPart = partName, moment = moment.name, itemKey = item.key, position = i)
+                        },
+                    )
+                }
+            },
+            onPick = { moment, item ->
+                scope.launch {
+                    deps.insteadOffers.markPicked(eventId.await(), moment.name, item.key)
+                    refreshInsteadStats()
+                }
+                doInstead(pkg, eventId, item, abandon)
+            },
+        )
+    }
+
+    /** D-025: the last [LEARN_DAYS] days of offers, read ahead so the list never waits on it. */
+    private suspend fun refreshInsteadStats() {
+        val from = System.currentTimeMillis() - Duration.ofDays(LEARN_DAYS).toMillis()
+        insteadStats = deps.insteadOffers.countsSince(from).toStats()
     }
 
     /**
@@ -461,8 +509,7 @@ class GateAccessibilityService : AccessibilityService() {
                 boredExtraDelay = deps.settings.boredExtraDelay,
                 onNeverMind = { neverMind() },
                 onProceed = { purpose, box -> startSession(pkg, eventId, purpose, box) },
-                instead = if (s.on(Feature.INSTEAD)) ({ item -> doInstead(pkg, eventId, item) }) else null,
-                night = night.phase,
+                instead = insteadHooks(pkg, eventId, now, s, night, abandon = true),
                 wakeText = timeText(night.wake),
                 onPostcard = { savePostcard(night, it) },
                 onStage = { promptStage = it },
@@ -561,6 +608,8 @@ class GateAccessibilityService : AccessibilityService() {
         private const val DETECT_INTERVAL_MS = 800L
         /** The budget check must not delay the prompt past N4 (≤300 ms); it falls back to the last value. */
         private const val BUDGET_TIMEOUT_MS = 250L
+        /** D-025: how far back the "just bored" list looks when learning its order. */
+        private const val LEARN_DAYS = 30L
         private val HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         /** For rows that must land after [scope] is cancelled (pause, destroy). */
         private val logScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

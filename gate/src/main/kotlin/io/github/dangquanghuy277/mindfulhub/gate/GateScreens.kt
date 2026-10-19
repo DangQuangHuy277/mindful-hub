@@ -36,8 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dangquanghuy277.mindfulhub.core.GateDecision
 import io.github.dangquanghuy277.mindfulhub.core.InsteadDefaults
-import io.github.dangquanghuy277.mindfulhub.core.InsteadItem
-import io.github.dangquanghuy277.mindfulhub.core.NightPhase
 import io.github.dangquanghuy277.mindfulhub.core.Purpose
 import io.github.dangquanghuy277.mindfulhub.core.TimeBox
 import io.github.dangquanghuy277.mindfulhub.theme.CardTone
@@ -93,8 +91,7 @@ fun GatePrompt(
     onNeverMind: () -> Unit,
     onProceed: (Purpose, TimeBox) -> Unit,
     /** F26 + F59 is on: "just bored" offers one-tap things to start instead of a list to read. */
-    instead: ((InsteadItem) -> Unit)? = null,
-    night: NightPhase = NightPhase.DAY,
+    instead: InsteadHooks? = null,
     wakeText: String = "",
     onPostcard: (String) -> Unit = {},
     /** Reports where the prompt is, so the outcome says where you decided (v4). */
@@ -133,7 +130,7 @@ fun GatePrompt(
             }
             Phase.Bored -> {
                 Text("That's honest. Any of these instead?", style = MaterialTheme.typography.titleSmall)
-                if (instead != null) InsteadPanel(night, instead) else SoftCard(Modifier.fillMaxWidth(), tone = CardTone.Lavender) {
+                if (instead != null) InsteadPanel(instead) else SoftCard(Modifier.fillMaxWidth(), tone = CardTone.Lavender) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         InsteadDefaults.items.forEach { (cat, text) ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
