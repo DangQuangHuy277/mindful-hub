@@ -23,6 +23,8 @@ import io.github.dangquanghuy277.mindfulhub.core.InsteadContext
 import io.github.dangquanghuy277.mindfulhub.core.InsteadItem
 import io.github.dangquanghuy277.mindfulhub.core.OfferStats
 import io.github.dangquanghuy277.mindfulhub.core.NightClock
+import io.github.dangquanghuy277.mindfulhub.core.MatchNights
+import io.github.dangquanghuy277.mindfulhub.core.matchOn
 import io.github.dangquanghuy277.mindfulhub.core.NightPhase
 import io.github.dangquanghuy277.mindfulhub.core.NightState
 import io.github.dangquanghuy277.mindfulhub.core.PromptCopy
@@ -301,7 +303,14 @@ class GateAccessibilityService : AccessibilityService() {
         } else {
             null
         }
-        return GateRules(night.phase, windDown, bedScrollLeft.await(), postcardDue.await(), feedLeft)
+        // F72: a match planned for this night opens its window; outside it the lock is as before.
+        val matchUntil = if (windDown && atNight) {
+            s.matchOn(night.night)?.let { MatchNights.window(it, deps.clock) }
+                ?.takeIf { (from, to) -> !now.isBefore(from) && now.isBefore(to) }?.second
+        } else {
+            null
+        }
+        return GateRules(night.phase, windDown, bedScrollLeft.await(), postcardDue.await(), feedLeft, matchUntil)
     }
 
     /**

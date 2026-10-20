@@ -85,7 +85,7 @@ fun TodayScreen(vm: TodayViewModel, onOpenReview: () -> Unit) {
             if (state.banksToPin.isNotEmpty()) BankShortcutCard(state.banksToPin)
             HelloCard(state.hello, state.plan.firstOrNull { it.status == null })
             state.postcard?.let { PostcardCard(it) }
-            if (state.checkInNight != null) CheckInCard(vm::answerCheckIn, vm::skipCheckIn)
+            if (state.checkInNight != null) CheckInCard(state.checkInPlannedLate, vm::answerCheckIn, vm::skipCheckIn)
             state.receipt?.let { ReceiptCard(it) }
             state.nightCard?.let { NightLogCard(it) }
             state.quest?.let { QuestCard(it, state.night?.phase, vm::startQuest, vm::holdChapter) }
@@ -146,10 +146,10 @@ private fun ReceiptCard(r: Receipt) {
 /** F65: two taps, before any sleep numbers. Saves as soon as both are answered. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CheckInCard(onAnswer: (Int, SleepLatency, Boolean) -> Unit, onSkip: (Boolean) -> Unit) {
+private fun CheckInCard(plannedLate: Boolean, onAnswer: (Int, SleepLatency, Boolean) -> Unit, onSkip: (Boolean) -> Unit) {
     var rested by remember { mutableStateOf<Int?>(null) }
     var latency by remember { mutableStateOf<SleepLatency?>(null) }
-    var late by remember { mutableStateOf(false) }
+    var late by remember(plannedLate) { mutableStateOf(plannedLate) }
     fun maybeSave() {
         val r = rested ?: return
         val l = latency ?: return
@@ -186,6 +186,9 @@ private fun NightLogCard(n: NightCard) {
     SoftCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("🌙 Last night, as the phone saw it", style = MaterialTheme.typography.titleMedium)
+            n.match?.let { m ->
+                Text("⚽ Planned match night: kick-off ${m.start}, ${m.minutes} min.", color = muted)
+            }
             when (n.status) {
                 NightStatus.NO_DATA -> Text("No phone data for last night: the phone was off, or the usage import didn't run.")
                 NightStatus.NO_CLEAR_NIGHT -> Text("No phone-down stretch of 3 hours or more last night.")

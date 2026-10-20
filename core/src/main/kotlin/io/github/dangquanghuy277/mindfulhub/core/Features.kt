@@ -30,6 +30,7 @@ enum class Feature(
     POSTCARD("F31 + F53", "Postcard to tomorrow", "At night, write one line about a good thing tomorrow. It waits for you in the morning.", FeatureStatus.APPROVED),
     NIGHT_LOG("F64", "Phone-down night log", "Each morning: when the phone went down and came back up, and how often you woke it. Measured from phone use, not sleep.", FeatureStatus.APPROVED),
     MORNING_CHECKIN("F65", "Morning check-in", "Two taps each morning: how rested you feel and how long falling asleep took. Asked before any sleep numbers.", FeatureStatus.APPROVED),
+    MATCH_NIGHT("F72", "Match nights", "Plan a late match a day ahead: YouTube opens through the gate during it, the rest stays locked, and the morning knows the night was planned.", FeatureStatus.APPROVED),
     SLEEP_QUEST("F13 + F44", "Sleep-shift quest", "Moves your wake time 15 min earlier every 3 days, told as chapters.", FeatureStatus.TRIAL),
     MORNING_RECEIPT("F61", "Morning receipt", "A calm card each morning: last night against your own best night.", FeatureStatus.TRIAL),
     CALM_LINKS("F17", "Calm links", "One card of finite, calm sources (HN, VnExpress, Barça news, Substack). Group time (F18) waits for your group links.", FeatureStatus.TRIAL),
@@ -64,6 +65,8 @@ data class Settings(
     val sleepQuestHoldDays: Int = 0,
     /** D-025: work, lunch and dinner times, for the "just bored" list. */
     val schedule: Schedule = Schedule(),
+    /** F72: planned late matches. */
+    val matchNights: List<MatchNight> = emptyList(),
 ) {
     fun on(f: Feature): Boolean = f in enabled
 }
@@ -83,6 +86,7 @@ object SettingsCodec {
     const val LUNCH_END = "lunchEnd"
     const val DINNER_START = "dinnerStart"
     const val DINNER_END = "dinnerEnd"
+    const val MATCH_NIGHTS = "matchNights"
 
     fun decode(values: Map<String, String>): Settings {
         val d = Settings()
@@ -103,6 +107,7 @@ object SettingsCodec {
                 lunchStart = time(LUNCH_START, ds.lunchStart), lunchEnd = time(LUNCH_END, ds.lunchEnd),
                 dinnerStart = time(DINNER_START, ds.dinnerStart), dinnerEnd = time(DINNER_END, ds.dinnerEnd),
             ),
+            matchNights = MatchNights.decode(values[MATCH_NIGHTS]),
         )
     }
 }
@@ -137,6 +142,7 @@ object Precommit {
             SettingsCodec.BED_SCROLL -> new == "true" && old != "true"
             SettingsCodec.BEDTIME -> later(old?.let(LocalTime::parse) ?: Settings().bedtime, LocalTime.parse(new))
             SettingsCodec.WAKE -> later(old?.let(LocalTime::parse) ?: Settings().wakeTime, LocalTime.parse(new))
+            SettingsCodec.MATCH_NIGHTS -> MatchNights.adds(old, new)
             else -> false
         }
     }

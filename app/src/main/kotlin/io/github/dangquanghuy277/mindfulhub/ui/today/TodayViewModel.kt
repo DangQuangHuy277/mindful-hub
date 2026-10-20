@@ -10,7 +10,9 @@ import io.github.dangquanghuy277.mindfulhub.core.Category
 import io.github.dangquanghuy277.mindfulhub.core.Comeback
 import io.github.dangquanghuy277.mindfulhub.core.Feature
 import io.github.dangquanghuy277.mindfulhub.core.FeedBudget
+import io.github.dangquanghuy277.mindfulhub.core.MatchNight
 import io.github.dangquanghuy277.mindfulhub.core.MorningCheckIn
+import io.github.dangquanghuy277.mindfulhub.core.matchOn
 import io.github.dangquanghuy277.mindfulhub.core.NightStatus
 import io.github.dangquanghuy277.mindfulhub.core.SleepLatency
 import io.github.dangquanghuy277.mindfulhub.core.GoodThings
@@ -68,6 +70,8 @@ data class NightCard(
     val firstApp: String?,
     val split: List<Pair<Instant, Instant>>,
     val shutdown: Boolean,
+    /** F72: the match you planned for this night, if any. */
+    val match: MatchNight? = null,
 )
 
 /** F13 + F44 (trial). */
@@ -84,6 +88,8 @@ data class TodayUiState(
     val receipt: Receipt? = null,
     /** F65: the night to ask about, while it's unanswered. Sleep numbers wait until it's done. */
     val checkInNight: LocalDate? = null,
+    /** F72: last night was a planned match night, so "planned late night" starts ticked. */
+    val checkInPlannedLate: Boolean = false,
     val nightCard: NightCard? = null,
     val quest: QuestState? = null,
     val feedUsed: Double? = null,
@@ -129,6 +135,7 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
                     quest = questOf(s, today),
                     postcard = postcardFor(s, now, today),
                     checkInNight = checkInNight,
+                    checkInPlannedLate = checkInNight?.let { n -> c.settingsStore.on(n).matchOn(n) != null } ?: false,
                 )
             }
             if (!c.importer.hasPermission()) return@launch
@@ -231,6 +238,7 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
                 Instant.ofEpochMilli(a.toLong()) to Instant.ofEpochMilli(b.toLong())
             },
             shutdown = row.shutdowns > 0,
+            match = c.settingsStore.on(today.minusDays(1)).matchOn(today.minusDays(1)),
         )
     }
 

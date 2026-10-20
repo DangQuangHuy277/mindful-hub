@@ -532,6 +532,25 @@ on a Sunday. Now:
   `night_card_shown` logs each showing; `sleep_checkin` keeps asked, answered and skipped. The usage
   import now also copies `SCREEN_ON`, `SHUTDOWN` and `STARTUP` (backfilled ~14 days on the first
   run), and a shutdown now ends an app session, as screen-off already did.
-- **Not decided yet:** a match-night exception to the wind-down lock and the sleep quest; your work
-  days (for F66's social jetlag); whether the phone charges in the bedroom; dropping F69–F71.
+- **Not decided yet:** your work days (for F66's social jetlag); whether the phone charges in the bedroom; dropping F69–F71.
+
+## D-027: Match nights are planned a day ahead
+2026-10-20. **Decided (your call: "implement the exception night").** F72 (ours), Settings → Match
+nights, with its own switch.
+- **Plan it a day ahead.** A match night loosens the wind-down lock, so adding one starts at the next
+  04:00 like every other loosening (P2); removing one applies at once. Settings only offers the next
+  seven nights from tomorrow, so nothing looks planned for tonight that won't apply.
+- **What it opens:** during the match plus 15 min either side, YouTube gets the normal pause (with an
+  "Until the match ends" box) instead of the lock. Feeds, X and games stay locked, and the lock is
+  back when the window ends. Your usage history from 9–19 Oct shows no match watched on the phone in
+  the likely windows, so this mostly matters if you stream on YouTube; other streaming apps aren't
+  gated anyway.
+- **What it doesn't change:** bedtime and wake time. Keeping the wake time after a late night holds
+  the sleep shift in place (anchoring the wake time is the core of S5, P19, P20); the quest's
+  chapters keep their days.
+- **Data:** the `matchNights` setting is versioned by day like every setting; the next morning F65's
+  "planned late night" tag starts ticked (you can untick it) and F64's card names the match. Gate
+  opens during the window are ordinary `gate_event` rows, joinable to the window by time.
+- **Later, maybe:** your ideal of sleeping ~23:00–02:00 before a match, then sleeping again. F64
+  already keeps both stretches; a "first sleep" wind-down before the match isn't built.
 

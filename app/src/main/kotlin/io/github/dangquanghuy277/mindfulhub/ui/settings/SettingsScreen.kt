@@ -2,6 +2,8 @@ package io.github.dangquanghuy277.mindfulhub.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,6 +20,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -30,12 +38,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import io.github.dangquanghuy277.mindfulhub.AppContainer
 import io.github.dangquanghuy277.mindfulhub.core.Feature
+import io.github.dangquanghuy277.mindfulhub.core.MatchNight
+import io.github.dangquanghuy277.mindfulhub.core.MatchNights
 import io.github.dangquanghuy277.mindfulhub.core.FeatureStatus
 import io.github.dangquanghuy277.mindfulhub.core.Settings
 import io.github.dangquanghuy277.mindfulhub.core.SettingsCodec
 import io.github.dangquanghuy277.mindfulhub.core.sleepTimes
 import io.github.dangquanghuy277.mindfulhub.theme.CardTone
 import io.github.dangquanghuy277.mindfulhub.theme.SoftCard
+import io.github.dangquanghuy277.mindfulhub.ui.rememberFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -142,6 +153,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
                 }
             }
 
+            if (s.on(Feature.MATCH_NIGHT)) MatchNightsCard(state, vm)
+
             Text("Your week", style = MaterialTheme.typography.titleLarge)
             SoftCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -173,6 +186,55 @@ fun SettingsScreen(vm: SettingsViewModel) {
         }
     }
 }
+
+/**
+ * F72: plan a late match at least a day ahead (it loosens the wind-down lock, so it starts tomorrow
+ * at 04:00 like any other loosening). Only nights from tomorrow are offered, so nothing looks
+ * planned for tonight that won't apply.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MatchNightsCard(state: SettingsUiState, vm: SettingsViewModel) {
+    val upcoming = state.settings.matchNights.filter { !it.night.isBefore(state.today) }
+    val nights = (1..7).map { state.today.plusDays(it.toLong()) }
+    var night by remember(state.today) { mutableStateOf(nights.first()) }
+    var kickoff by remember { mutableStateOf(LocalTime.of(2, 0)) }
+    var minutes by remember { mutableIntStateOf(120) }
+    val day = rememberFormatter("EEE d MMM")
+    fun save(list: List<MatchNight>) = vm.set(SettingsCodec.MATCH_NIGHTS, MatchNights.encode(list.filter { !it.night.isBefore(state.today) }))
+
+    Text("Match nights", style = MaterialTheme.typography.titleLarge)
+    SoftCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "Plan a late match at least a day ahead. During it, and 15 min either side, YouTube opens through the gate; " +
+                    "feeds, X and games stay locked. Keep the same wake time the next morning: it holds the sleep shift in place.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            upcoming.forEach { m ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⚽ Night of ${day.format(m.night)} · kick-off ${m.start}, ${m.minutes} min", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    TextButton(onClick = { save(upcoming - m) }) { Text("Remove") }
+                }
+            }
+            Text("Night of", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                nights.forEach { n -> FilterChip(selected = night == n, onClick = { night = n }, label = { Text(day.format(n)) }) }
+            }
+            Text("Kick-off", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KICKOFFS.forEach { t -> FilterChip(selected = kickoff == t, onClick = { kickoff = t }, label = { Text(t.toString()) }) }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(120, 150).forEach { m -> FilterChip(selected = minutes == m, onClick = { minutes = m }, label = { Text(if (m == 120) "2 h" else "2 h 30 (extra time)") }) }
+            }
+            FilledTonalButton(onClick = { save(upcoming + MatchNight(night, kickoff, minutes)) }) { Text("Add match night") }
+        }
+    }
+}
+
+/** Common kick-offs in Vietnam time for European football. */
+private val KICKOFFS = listOf(LocalTime.of(23, 30), LocalTime.of(0, 0), LocalTime.of(1, 30), LocalTime.of(2, 0), LocalTime.of(2, 45), LocalTime.of(3, 0))
 
 @Composable
 private fun FeatureGroup(title: String, status: FeatureStatus, state: SettingsUiState, vm: SettingsViewModel) {

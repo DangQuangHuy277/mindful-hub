@@ -116,6 +116,8 @@ data class GateRules(
     val postcardDue: Boolean = false,
     /** F29: minutes left in today's feeds budget, or null when there's no budget. */
     val feedMinutesLeft: Double? = null,
+    /** F72: inside tonight's planned match window, this is when it ends; null otherwise. */
+    val matchUntil: Instant? = null,
 )
 
 /** A time-box choice. Games are offered in matches; one match ≈ 20 min (D-006). */
@@ -144,17 +146,21 @@ object GatePolicy {
         if (session != null && now.isBefore(session.end)) return GateDecision.Allow
         // Messages stay light at night: no postcard step before them.
         val postcard = rules.postcardDue && rules.night == NightPhase.AFTER_BEDTIME && profile != AppProfile.MESSAGING
-        if (rules.windDownLock && rules.night != NightPhase.DAY && profile != AppProfile.MESSAGING) {
+        // F72: during a planned match, YouTube gets the normal pause instead of the lock. Feeds, X
+        // and games stay locked, and the lock is back the moment the window ends.
+        val match = rules.matchUntil?.takeIf { pkg == YOUTUBE && now.isBefore(it) }
+        if (rules.windDownLock && rules.night != NightPhase.DAY && profile != AppProfile.MESSAGING && match == null) {
             return GateDecision.Locked(LockReason.WIND_DOWN, bedScroll = rules.bedScrollLeft, postcardDue = rules.postcardDue)
         }
         val left = rules.feedMinutesLeft.takeIf { profile == AppProfile.STRICT }
         if (left != null && left < 1.0) return GateDecision.Locked(LockReason.BUDGET, postcardDue = postcard)
         val openNumber = opensToday + 1
+        val boxes = capTo(timeBoxesFor(profile), left)
         return GateDecision.Prompt(
             profile = profile,
             delay = delayFor(profile, openNumber, settings),
             purposes = purposesFor(profile, pkg),
-            timeBoxes = capTo(timeBoxesFor(profile), left),
+            timeBoxes = match?.let { listOf(TimeBox(MATCH_BOX, Duration.between(now, it))) + boxes } ?: boxes,
             openNumber = openNumber,
             postcardDue = postcard,
         )
@@ -184,6 +190,7 @@ object GatePolicy {
     /** Facebook's own app, whose messages live in Messenger (D-023). */
     const val FACEBOOK = "com.facebook.katana"
     const val YOUTUBE = "com.google.android.youtube"
+    const val MATCH_BOX = "Until the match ends"
 
     fun purposesFor(profile: AppProfile, pkg: String? = null): List<Purpose> = when (profile) {
         // Messaging happens in Messenger, so Facebook never offers the two messaging reasons (D-023).

@@ -44,6 +44,7 @@ own code (see ARCHITECTURE.md, "Feature switches") so it can be deleted.
 | F17 + F18 | Calm launcher + group time | Trial | Not reviewed yet. Needs your group links |
 | F64 | Phone-down night log | Approved (2026-10-20, D-026) | Football at 02:00–04:00 some nights: split nights keep every phone-down stretch ≥ 90 min |
 | F65 | Morning check-in (rested 1–5, time to fall asleep) | Approved (2026-10-20, D-026) | Optional "⚽ planned late night" tag, so match nights aren't read as slips |
+| F72 (ours) | Match nights: a planned exception to the wind-down lock | Approved (2026-10-20, D-027) | Your ask, for 02:00–04:00 matches |
 
 ## Sleep (2026-10-20): what's next, from [sleep/RESEARCH.md](sleep/RESEARCH.md)
 

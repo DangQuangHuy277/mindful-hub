@@ -207,6 +207,7 @@ one can be turned off today and deleted later.
 | F61 morning receipt (trial) | — | — | — | `receiptFor`, `ReceiptCard` |
 | F64 night log | `NightLog`, `NightRules`, `NightFacts` (NightLog.kt); `SCREEN_ON`/`SHUTDOWN`/`STARTUP` in `UsageEventType` | `night_log`, `night_card_shown` (SleepData.kt) | — | `nightCardFor`, `NightLogCard`; `UsageImportWorker` keeps it current |
 | F65 morning check-in | `MorningCheckIn`, `SleepLatency` (CheckIn.kt) | `sleep_checkin` (SleepData.kt) | — | `checkInFor`, `CheckInCard`; hides F61 and F64 until answered |
+| F72 match nights | `MatchNight`, `MatchNights`, `Settings.matchOn` (Match.kt); `GateRules.matchUntil`, `GatePolicy.MATCH_BOX` | — (setting `matchNights`) | `rulesFor` | `MatchNightsCard` (Settings); ticks F65's tag, a line on F64's card |
 | F17 calm links (trial) | `CalmLinks` (Plan.kt) | — | — | `CalmLinksCard` |
 
 **Copy rules (F32)**, for every screen: suggest ("want to…?", "could"), never order. State the task
