@@ -540,9 +540,11 @@ nights, with its own switch.
 - **Plan it a day ahead.** A match night loosens the wind-down lock, so adding one starts at the next
   04:00 like every other loosening (P2); removing one applies at once. Settings only offers the next
   seven nights from tomorrow, so nothing looks planned for tonight that won't apply.
-- **What it opens:** during the match plus 15 min either side, YouTube gets the normal pause (with an
-  "Until the match ends" box) instead of the lock. Feeds, X and games stay locked, and the lock is
-  back when the window ends. Your usage history from 9–19 Oct shows no match watched on the phone in
+- **What it opens:** during the match plus 15 min either side, YouTube, the feeds (Facebook,
+  Instagram, Threads) and X get the normal pause instead of the lock: you want to see what people
+  say at half time and maybe join in (your call, 2026-10-20). Only YouTube gets an "Until the match
+  ends" box; the feeds keep their short boxes and the feeds budget still counts. Games stay locked,
+  and the lock is back when the window ends. Your usage history from 9–19 Oct shows no match watched on the phone in
   the likely windows, so this mostly matters if you stream on YouTube; other streaming apps aren't
   gated anyway.
 - **What it doesn't change:** bedtime and wake time. Keeping the wake time after a late night holds

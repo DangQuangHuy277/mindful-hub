@@ -146,9 +146,10 @@ object GatePolicy {
         if (session != null && now.isBefore(session.end)) return GateDecision.Allow
         // Messages stay light at night: no postcard step before them.
         val postcard = rules.postcardDue && rules.night == NightPhase.AFTER_BEDTIME && profile != AppProfile.MESSAGING
-        // F72: during a planned match, YouTube gets the normal pause instead of the lock. Feeds, X
-        // and games stay locked, and the lock is back the moment the window ends.
-        val match = rules.matchUntil?.takeIf { pkg == YOUTUBE && now.isBefore(it) }
+        // F72: during a planned match, YouTube, the feeds and X get the normal pause instead of the
+        // lock (the match, and what people say about it at half time). Games stay locked, the feeds
+        // budget still counts, and the lock is back the moment the window ends.
+        val match = rules.matchUntil?.takeIf { profile != AppProfile.GAME && now.isBefore(it) }
         if (rules.windDownLock && rules.night != NightPhase.DAY && profile != AppProfile.MESSAGING && match == null) {
             return GateDecision.Locked(LockReason.WIND_DOWN, bedScroll = rules.bedScrollLeft, postcardDue = rules.postcardDue)
         }
@@ -160,7 +161,8 @@ object GatePolicy {
             profile = profile,
             delay = delayFor(profile, openNumber, settings),
             purposes = purposesFor(profile, pkg),
-            timeBoxes = match?.let { listOf(TimeBox(MATCH_BOX, Duration.between(now, it))) + boxes } ?: boxes,
+            // Only the stream gets a box to the final whistle; the feeds keep their short boxes.
+            timeBoxes = match?.takeIf { pkg == YOUTUBE }?.let { listOf(TimeBox(MATCH_BOX, Duration.between(now, it))) + boxes } ?: boxes,
             openNumber = openNumber,
             postcardDue = postcard,
         )

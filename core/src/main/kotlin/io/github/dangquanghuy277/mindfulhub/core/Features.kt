@@ -30,7 +30,7 @@ enum class Feature(
     POSTCARD("F31 + F53", "Postcard to tomorrow", "At night, write one line about a good thing tomorrow. It waits for you in the morning.", FeatureStatus.APPROVED),
     NIGHT_LOG("F64", "Phone-down night log", "Each morning: when the phone went down and came back up, and how often you woke it. Measured from phone use, not sleep.", FeatureStatus.APPROVED),
     MORNING_CHECKIN("F65", "Morning check-in", "Two taps each morning: how rested you feel and how long falling asleep took. Asked before any sleep numbers.", FeatureStatus.APPROVED),
-    MATCH_NIGHT("F72", "Match nights", "Plan a late match a day ahead: YouTube opens through the gate during it, the rest stays locked, and the morning knows the night was planned.", FeatureStatus.APPROVED),
+    MATCH_NIGHT("F72", "Match nights", "Plan a late match a day ahead: YouTube, the feeds and X open through the normal pause during it, games stay locked, and the morning knows the night was planned.", FeatureStatus.APPROVED),
     SLEEP_QUEST("F13 + F44", "Sleep-shift quest", "Moves your wake time 15 min earlier every 3 days, told as chapters.", FeatureStatus.TRIAL),
     MORNING_RECEIPT("F61", "Morning receipt", "A calm card each morning: last night against your own best night.", FeatureStatus.TRIAL),
     CALM_LINKS("F17", "Calm links", "One card of finite, calm sources (HN, VnExpress, Barça news, Substack). Group time (F18) waits for your group links.", FeatureStatus.TRIAL),

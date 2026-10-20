@@ -58,11 +58,31 @@ class MatchNightTest {
     }
 
     @Test
-    fun `feeds, X and games stay locked during the match`() {
+    fun `feeds and X get the normal pause during the match, with their short boxes`() {
         val r = night.copy(matchUntil = at(25, 4, 15))
-        listOf("com.facebook.katana", "com.twitter.android", "com.hhgame.mlbbvn").forEach { pkg ->
-            assertIs<GateDecision.Locked>(GatePolicy.decide(pkg, Screen.APP, at(25, 2, 30), emptyMap(), 0, rules = r))
+        listOf("com.facebook.katana", "com.twitter.android").forEach { pkg ->
+            val d = assertIs<GateDecision.Prompt>(GatePolicy.decide(pkg, Screen.APP, at(25, 2, 30), emptyMap(), 0, rules = r))
+            assertTrue(d.timeBoxes.none { it.label == GatePolicy.MATCH_BOX })
         }
+    }
+
+    @Test
+    fun `games stay locked during the match`() {
+        val r = night.copy(matchUntil = at(25, 4, 15))
+        assertIs<GateDecision.Locked>(GatePolicy.decide("com.hhgame.mlbbvn", Screen.APP, at(25, 2, 30), emptyMap(), 0, rules = r))
+    }
+
+    @Test
+    fun `the feeds budget still counts during the match`() {
+        val r = night.copy(matchUntil = at(25, 4, 15), feedMinutesLeft = 0.0)
+        val d = assertIs<GateDecision.Locked>(GatePolicy.decide("com.facebook.katana", Screen.APP, at(25, 2, 30), emptyMap(), 0, rules = r))
+        assertEquals(LockReason.BUDGET, d.reason)
+    }
+
+    @Test
+    fun `after the window the lock is back`() {
+        val r = night.copy(matchUntil = at(25, 4, 15))
+        assertIs<GateDecision.Locked>(GatePolicy.decide("com.facebook.katana", Screen.APP, at(25, 4, 15), emptyMap(), 0, rules = r))
     }
 
     @Test

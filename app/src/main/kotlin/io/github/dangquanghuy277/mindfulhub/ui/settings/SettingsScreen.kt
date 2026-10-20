@@ -207,8 +207,9 @@ private fun MatchNightsCard(state: SettingsUiState, vm: SettingsViewModel) {
     SoftCard {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                "Plan a late match at least a day ahead. During it, and 15 min either side, YouTube opens through the gate; " +
-                    "feeds, X and games stay locked. Keep the same wake time the next morning: it holds the sleep shift in place.",
+                "Plan a late match at least a day ahead. During it, and 15 min either side, YouTube, the feeds and X open " +
+                    "through the normal pause (for the match and the half-time talk); games stay locked. Keep the same wake time " +
+                    "the next morning: it holds the sleep shift in place.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             upcoming.forEach { m ->
