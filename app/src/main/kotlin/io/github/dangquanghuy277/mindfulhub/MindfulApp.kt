@@ -15,6 +15,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.github.dangquanghuy277.mindfulhub.core.AppProfile
+import io.github.dangquanghuy277.mindfulhub.core.Feature
 import io.github.dangquanghuy277.mindfulhub.core.FeedBudget
 import io.github.dangquanghuy277.mindfulhub.core.GateSettings
 import io.github.dangquanghuy277.mindfulhub.core.Sessionizer
@@ -23,6 +24,7 @@ import io.github.dangquanghuy277.mindfulhub.data.BuildStampEntity
 import io.github.dangquanghuy277.mindfulhub.data.DataExport
 import io.github.dangquanghuy277.mindfulhub.data.GateStatusEntity
 import io.github.dangquanghuy277.mindfulhub.data.MindfulDatabase
+import io.github.dangquanghuy277.mindfulhub.data.NightLogStore
 import io.github.dangquanghuy277.mindfulhub.data.stampIfChanged
 import io.github.dangquanghuy277.mindfulhub.data.SettingsStore
 import io.github.dangquanghuy277.mindfulhub.data.UsageRepository
@@ -59,6 +61,9 @@ class AppContainer(context: Context) {
     val postcards = db.postcards()
     val stamps = db.stamps()
     val insteadOffers = db.insteadOffers()
+    // F64 + F65 (SleepData.kt).
+    val nightLog = NightLogStore(db.nights(), usage, clock, settingsStore)
+    val checkIns = db.checkIns()
 
     /** A6: the whole database to Downloads; returns the file name. */
     suspend fun exportData(): String = DataExport.toDownloads(app, db)
@@ -125,6 +130,8 @@ class UsageImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         val c = (applicationContext as MindfulApp).container
         if (!c.importer.hasPermission()) return Result.success()
         c.importer.importNew()
+        // F64: nights are logged even on mornings you don't open the app.
+        if (c.settingsStore.on(c.clock.dayOf(Instant.now())).on(Feature.NIGHT_LOG)) runCatching { c.nightLog.update(Instant.now()) }
 
         val to = Instant.now()
         val from = to.minus(Duration.ofHours(1))

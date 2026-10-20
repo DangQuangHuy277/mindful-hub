@@ -76,7 +76,7 @@ object NightClock {
     }
 
     /** The first [time] strictly after [from], in the clock's zone. */
-    private fun nextAfter(from: Instant, time: LocalTime, clock: LogicalDayClock): Instant {
+    internal fun nextAfter(from: Instant, time: LocalTime, clock: LogicalDayClock): Instant {
         val zoned = from.atZone(clock.zone)
         val same = zoned.toLocalDate().atTime(time).atZone(clock.zone).toInstant()
         return if (same.isAfter(from)) same else zoned.toLocalDate().plusDays(1).atTime(time).atZone(clock.zone).toInstant()

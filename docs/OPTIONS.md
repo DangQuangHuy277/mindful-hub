@@ -4,7 +4,8 @@ Status: **v1.0 approvals recorded**, 2026-10-19 (D-021). Only the "Approved" and
 being built; everything else is still an option. Approved work moves to GitHub issues once `gh` is set
 up (D-021). This collects every option
 from [FEATURES-V1.md](FEATURES-V1.md) (F01–F24), [RESEARCH-TIME.md](RESEARCH-TIME.md) (F25–F37,
-F55–F63) and [gamification/RESEARCH-GAMIFICATION.md](gamification/RESEARCH-GAMIFICATION.md) (F38–F54), and adds what's already
+F55–F63) and [gamification/RESEARCH-GAMIFICATION.md](gamification/RESEARCH-GAMIFICATION.md) (F38–F54) and
+[sleep/RESEARCH.md](sleep/RESEARCH.md) (F64–F71, plus A7 and H1), and adds what's already
 built and what depends on what.
 
 **How to read the scores.** Each doc scored with slightly different criteria (max 45, 55 or 65), so
@@ -41,6 +42,21 @@ own code (see ARCHITECTURE.md, "Feature switches") so it can be deleted.
 | F31 + F53 | Tomorrow-you postcard at night | Approved | — |
 | F13 + F44 + F61 | Sleep-shift quest + morning receipt | Trial | Not reviewed yet |
 | F17 + F18 | Calm launcher + group time | Trial | Not reviewed yet. Needs your group links |
+| F64 | Phone-down night log | Approved (2026-10-20, D-026) | Football at 02:00–04:00 some nights: split nights keep every phone-down stretch ≥ 90 min |
+| F65 | Morning check-in (rested 1–5, time to fall asleep) | Approved (2026-10-20, D-026) | Optional "⚽ planned late night" tag, so match nights aren't read as slips |
+
+## Sleep (2026-10-20): what's next, from [sleep/RESEARCH.md](sleep/RESEARCH.md)
+
+Scored with the research doc's proposed weights (evidence ×3, fits the problem ×3, low risk ×2,
+cheap ×1; max 45). Not approved yet.
+
+| ID | Feature | Score | Depends on | Notes |
+|---|---|---|---|---|
+| F68 | Bedtime if-then plan (MCII), shown in wind-down | 84% | F03 | Two RCTs on bedtime procrastination (P47) |
+| F66 | Weekly sleep-timing card: regularity (SRI), wake-time spread, mid-sleep, social jetlag | 82% | F64, F11 | Is S3 in REQUIREMENTS. Needs your work days for social jetlag |
+| F67 (ours) | Bed-scroll experiment: alternate weeks with the bed scroll on and off | 80% | F64, F65, F03, F23 | Answers your F03 note. After ~2 weeks of baseline |
+| A7 | Google Sleep API cross-check | 64% | F64 | Free signal from Play Services, not publicly validated |
+| H1 | Health Connect sleep reader (any tracker or watch) | 60% | F64 | Only to check F64 against a tracker; you found the apps didn't help before |
 
 ## Proposed for v1.1 (not approved): the good-week layer and stronger friction
 
@@ -79,6 +95,9 @@ own code (see ARCHITECTURE.md, "Feature switches") so it can be deleted.
 | F34 | Urge-surf gate form | 51% | Thin evidence; one form inside F30 |
 | F20 | Hot around me | 60% | — |
 | F07 | One-video pass | 47% | Hardest to detect |
+| F71 | Smart wake window | 44% | No validated trial (P49) |
+| F69 | Own mattress accelerometer log | 44% | Needs the phone in bed (against S1), adds little (P42) |
+| F70 | On-device sleep sounds | 27% | Mic all night; snoring isn't the problem. Open question: drop F69–F71? |
 
 ## Out (fails a must-pass gate)
 

@@ -30,11 +30,14 @@ class UsageStatsImporter(
 
     /**
      * Imports everything since the last imported event (with 1 min of overlap, deduplicated by the
-     * unique index), or the last [firstLookback] on the very first run.
+     * unique index), or the last [firstLookback] on the very first run. Until the first SCREEN_ON
+     * arrives it reaches back [backfill] too: F64 added that type (and shutdowns), and the system
+     * still holds about that much history of them.
      */
-    suspend fun importNew(firstLookback: Duration = Duration.ofDays(60)): ImportResult = withContext(Dispatchers.IO) {
+    suspend fun importNew(firstLookback: Duration = Duration.ofDays(60), backfill: Duration = Duration.ofDays(14)): ImportResult = withContext(Dispatchers.IO) {
         val end = now()
-        val start = dao.latestTs()?.let { Instant.ofEpochMilli(it).minusSeconds(60) } ?: end.minus(firstLookback)
+        var start = dao.latestTs()?.let { Instant.ofEpochMilli(it).minusSeconds(60) } ?: end.minus(firstLookback)
+        if (!dao.hasType(UsageEventType.SCREEN_ON.name)) start = minOf(start, end.minus(backfill))
         val usm = context.getSystemService(UsageStatsManager::class.java)
         val events = usm.queryEvents(start.toEpochMilli(), end.toEpochMilli())
         val e = UsageEvents.Event()
@@ -53,6 +56,9 @@ class UsageStatsImporter(
         UsageEvents.Event.ACTIVITY_PAUSED -> UsageEventType.BACKGROUND
         UsageEvents.Event.SCREEN_NON_INTERACTIVE -> UsageEventType.SCREEN_OFF
         UsageEvents.Event.KEYGUARD_HIDDEN -> UsageEventType.UNLOCK
+        UsageEvents.Event.SCREEN_INTERACTIVE -> UsageEventType.SCREEN_ON
+        UsageEvents.Event.DEVICE_SHUTDOWN -> UsageEventType.SHUTDOWN
+        UsageEvents.Event.DEVICE_STARTUP -> UsageEventType.STARTUP
         else -> null
     }
 }

@@ -47,6 +47,9 @@ interface AppEventDao {
 
     @Query("SELECT MIN(ts) FROM app_event WHERE source = :source")
     suspend fun earliestTs(source: String = "usage"): Long?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM app_event WHERE type = :type)")
+    suspend fun hasType(type: String): Boolean
 }
 
 /** Every gate decision and what the user did with it (G1, F05). `outcome` is filled in later. */
@@ -203,11 +206,13 @@ data class GateSummaryRow(val decision: String, val outcome: String?, val n: Int
         GateStatusEntity::class, BuildStampEntity::class,
         // v5: what the "just bored" list offered and what was picked (D-025, InsteadData.kt).
         InsteadOfferEntity::class,
+        // v6: F64 night log and F65 morning check-in (SleepData.kt).
+        NightLogEntity::class, NightCardShownEntity::class, SleepCheckInEntity::class,
     ],
-    version = 5,
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4),
-        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6),
     ],
 )
 abstract class MindfulDatabase : RoomDatabase() {
@@ -220,6 +225,8 @@ abstract class MindfulDatabase : RoomDatabase() {
     abstract fun postcards(): PostcardDao
     abstract fun stamps(): StampDao
     abstract fun insteadOffers(): InsteadOfferDao
+    abstract fun nights(): NightLogDao
+    abstract fun checkIns(): CheckInDao
 
     companion object {
         fun create(context: Context): MindfulDatabase =

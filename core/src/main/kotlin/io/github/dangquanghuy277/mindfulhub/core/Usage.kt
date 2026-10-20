@@ -3,7 +3,8 @@ package io.github.dangquanghuy277.mindfulhub.core
 import java.time.Duration
 import java.time.Instant
 
-enum class UsageEventType { FOREGROUND, BACKGROUND, SCREEN_OFF, UNLOCK }
+/** SCREEN_ON, SHUTDOWN and STARTUP were added for the night log (F64); older history has none. */
+enum class UsageEventType { FOREGROUND, BACKGROUND, SCREEN_OFF, UNLOCK, SCREEN_ON, SHUTDOWN, STARTUP }
 
 /** One system usage event, already mapped from Android's `UsageEvents.Event` by `:data`. */
 data class UsageEvent(val at: Instant, val pkg: String, val type: UsageEventType)
@@ -18,7 +19,7 @@ object Sessionizer {
      * Turns raw events into foreground sessions.
      *
      * - A session ends at the app's own BACKGROUND event, at the next app's FOREGROUND, or at
-     *   SCREEN_OFF, whichever comes first.
+     *   SCREEN_OFF or SHUTDOWN, whichever comes first.
      * - A session still open at the end of the log is closed at `min(now, start + maxOpen)`, so one
      *   lost BACKGROUND event can't inflate a whole night.
      * - Same-app sessions separated by at most [mergeGap] are merged: switching activities inside
@@ -50,8 +51,8 @@ object Sessionizer {
                     openAt = e.at
                 }
                 UsageEventType.BACKGROUND -> if (e.pkg == openPkg) close(e.at)
-                UsageEventType.SCREEN_OFF -> close(e.at)
-                UsageEventType.UNLOCK -> Unit
+                UsageEventType.SCREEN_OFF, UsageEventType.SHUTDOWN -> close(e.at)
+                UsageEventType.UNLOCK, UsageEventType.SCREEN_ON, UsageEventType.STARTUP -> Unit
             }
         }
         openAt?.let { close(minOf(now, it.plus(maxOpen))) }

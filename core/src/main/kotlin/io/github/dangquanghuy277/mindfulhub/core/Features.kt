@@ -28,6 +28,8 @@ enum class Feature(
     FEED_BUDGET("F29", "Feeds budget", "One daily budget shared by Facebook, Instagram and Threads.", FeatureStatus.APPROVED, restricts = true),
     WIND_DOWN("F03", "Wind-down lock", "Feeds, games and YouTube rest from before bedtime until your wake time.", FeatureStatus.APPROVED, restricts = true),
     POSTCARD("F31 + F53", "Postcard to tomorrow", "At night, write one line about a good thing tomorrow. It waits for you in the morning.", FeatureStatus.APPROVED),
+    NIGHT_LOG("F64", "Phone-down night log", "Each morning: when the phone went down and came back up, and how often you woke it. Measured from phone use, not sleep.", FeatureStatus.APPROVED),
+    MORNING_CHECKIN("F65", "Morning check-in", "Two taps each morning: how rested you feel and how long falling asleep took. Asked before any sleep numbers.", FeatureStatus.APPROVED),
     SLEEP_QUEST("F13 + F44", "Sleep-shift quest", "Moves your wake time 15 min earlier every 3 days, told as chapters.", FeatureStatus.TRIAL),
     MORNING_RECEIPT("F61", "Morning receipt", "A calm card each morning: last night against your own best night.", FeatureStatus.TRIAL),
     CALM_LINKS("F17", "Calm links", "One card of finite, calm sources (HN, VnExpress, Barça news, Substack). Group time (F18) waits for your group links.", FeatureStatus.TRIAL),

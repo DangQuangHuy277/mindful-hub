@@ -103,6 +103,9 @@ v4 closed the gaps found in an audit:
   `BLOCKED`); sessions found overdue after a restart end as `RESTORED`, not `TIMEBOX`, since their
   real end is unknown there (`app_event` has it). `SCREEN_OFF` was never written and is gone.
 | `postcard` | night (logical day), text | F31 + F53 |
+| `night_log` | night, status, planned bed/wake, down_at, up_at, last/first pkg, interruptions (count, seconds, pkgs), glances, other stretches, shutdowns, screen_on_signal, settled, rules_version | F64 |
+| `night_card_shown` | ts, night, settled | F64 exposure |
+| `sleep_checkin` | night, asked_at, answered_at, skipped, rested 1–5, latency bucket, planned_late | F65 |
 
 ## Design rules that aren't obvious
 
@@ -202,6 +205,8 @@ one can be turned off today and deleted later.
 | D-025 instead learns | `InsteadMenu.rank`, `OfferStats` | `instead_offer` (InsteadData.kt) | `insteadHooks`, `refreshInsteadStats` | — |
 | F13 + F44 sleep quest (trial) | `SleepQuest`, `Settings.sleepTimes` | — (settings) | — | `QuestCard` |
 | F61 morning receipt (trial) | — | — | — | `receiptFor`, `ReceiptCard` |
+| F64 night log | `NightLog`, `NightRules`, `NightFacts` (NightLog.kt); `SCREEN_ON`/`SHUTDOWN`/`STARTUP` in `UsageEventType` | `night_log`, `night_card_shown` (SleepData.kt) | — | `nightCardFor`, `NightLogCard`; `UsageImportWorker` keeps it current |
+| F65 morning check-in | `MorningCheckIn`, `SleepLatency` (CheckIn.kt) | `sleep_checkin` (SleepData.kt) | — | `checkInFor`, `CheckInCard`; hides F61 and F64 until answered |
 | F17 calm links (trial) | `CalmLinks` (Plan.kt) | — | — | `CalmLinksCard` |
 
 **Copy rules (F32)**, for every screen: suggest ("want to…?", "could"), never order. State the task
@@ -211,7 +216,24 @@ up. A slip day gets "welcome back" and one next step. Every Instead line says wh
 
 **Unverified on the phone** (built and unit-tested, not yet tried on the S22): typing in the overlay
 (the postcard field), the Clock app's timer from the gate, the toast after leaving early, plan
-reminders.
+reminders, the F64 and F65 morning cards (both only show 04:00–14:00; the F64 rules were run over
+the real history from 9–20 Oct, see D-026).
+
+### Night log (F64): how a night is found
+```
+app_event (usage import, hourly)        SCREEN_ON · UNLOCK · FOREGROUND · SCREEN_OFF · SHUTDOWN
+   ▼ NightLog.screenUses                 screen-on stretches; before the first SCREEN_ON (old history)
+   │                                     an app or unlock opens one. Named by the app used longest
+   ▼ use = unlocked OR ≥ 60 s            shorter, locked screen-ons are glances, not uses
+   ▼ gaps between uses
+   ▼ core = gap covering most of planned bed→wake (ties: most of the window bed−4 h … wake+5 h)
+   │        ≥ 3 h, else NO_CLEAR_NIGHT;   no events at all in the window = NO_DATA (never a perfect night)
+   ▼ grow across uses ≤ 20 min that start before the planned wake, if ≥ 45 min of rest follows
+   ▼ down_at · up_at · interruptions · other stretches ≥ 90 min before the wake (split nights)
+╔═ night_log (settled once later events can't change it; rules_version = NightRules.version) ═╗
+```
+Changing any number in `NightRules` must bump its `version`; stored nights keep the version that
+made them, and unsettled or older-version nights are recomputed.
 
 ## Usage views (D-018)
 `:app` `ui/views/UsageView.kt` holds the registry. Each view gets one `UsageSnapshot`: sessions for

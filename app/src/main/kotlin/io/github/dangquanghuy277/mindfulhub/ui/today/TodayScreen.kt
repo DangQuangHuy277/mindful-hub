@@ -40,6 +40,8 @@ import io.github.dangquanghuy277.mindfulhub.core.CalmLinks
 import io.github.dangquanghuy277.mindfulhub.core.Category
 import io.github.dangquanghuy277.mindfulhub.core.Feature
 import io.github.dangquanghuy277.mindfulhub.core.NightPhase
+import io.github.dangquanghuy277.mindfulhub.core.NightStatus
+import io.github.dangquanghuy277.mindfulhub.core.SleepLatency
 import io.github.dangquanghuy277.mindfulhub.core.PlanItem
 import io.github.dangquanghuy277.mindfulhub.core.SleepQuest
 import io.github.dangquanghuy277.mindfulhub.core.WeekPlan
@@ -54,6 +56,8 @@ import io.github.dangquanghuy277.mindfulhub.ui.NotificationPermission
 import io.github.dangquanghuy277.mindfulhub.ui.formatMinutes
 import io.github.dangquanghuy277.mindfulhub.ui.greeting
 import io.github.dangquanghuy277.mindfulhub.ui.rememberFormatter
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -81,7 +85,9 @@ fun TodayScreen(vm: TodayViewModel, onOpenReview: () -> Unit) {
             if (state.banksToPin.isNotEmpty()) BankShortcutCard(state.banksToPin)
             HelloCard(state.hello, state.plan.firstOrNull { it.status == null })
             state.postcard?.let { PostcardCard(it) }
+            if (state.checkInNight != null) CheckInCard(vm::answerCheckIn, vm::skipCheckIn)
             state.receipt?.let { ReceiptCard(it) }
+            state.nightCard?.let { NightLogCard(it) }
             state.quest?.let { QuestCard(it, state.night?.phase, vm::startQuest, vm::holdChapter) }
             if (state.reviewDue) ReviewDueCard(onOpenReview)
             state.feedUsed?.let { FeedsCard(it, s.feedBudgetMinutes) }
@@ -132,6 +138,89 @@ private fun ReceiptCard(r: Receipt) {
             Text(
                 "Your best of the ${r.nights} nights before: ${formatMinutes(r.best)}.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** F65: two taps, before any sleep numbers. Saves as soon as both are answered. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CheckInCard(onAnswer: (Int, SleepLatency, Boolean) -> Unit, onSkip: (Boolean) -> Unit) {
+    var rested by remember { mutableStateOf<Int?>(null) }
+    var latency by remember { mutableStateOf<SleepLatency?>(null) }
+    var late by remember { mutableStateOf(false) }
+    fun maybeSave() {
+        val r = rested ?: return
+        val l = latency ?: return
+        onAnswer(r, l, late)
+    }
+    SoftCard(tone = CardTone.Lavender) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("☀️ Good morning: two quick taps", style = MaterialTheme.typography.titleMedium)
+            FilterChip(selected = late, onClick = { late = !late }, label = { Text("⚽ Planned late night (a match)") })
+            Text("How rested do you feel?", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (1..5).forEach { n ->
+                    val label = when (n) { 1 -> "1 not at all"; 5 -> "5 very"; else -> "$n" }
+                    FilterChip(selected = rested == n, onClick = { rested = n; maybeSave() }, label = { Text(label) })
+                }
+            }
+            Text("How long did falling asleep take?", style = MaterialTheme.typography.titleSmall)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SleepLatency.entries.forEach { l ->
+                    FilterChip(selected = latency == l, onClick = { latency = l; maybeSave() }, label = { Text(l.label) })
+                }
+            }
+            TextButton(onClick = { onSkip(late) }) { Text("Skip today") }
+        }
+    }
+}
+
+/** F64: facts about the phone, labelled as such. No score and no verdict (F32, P44). */
+@Composable
+private fun NightLogCard(n: NightCard) {
+    val time = rememberFormatter("HH:mm")
+    fun hm(i: Instant) = time.format(i.atZone(ZoneId.systemDefault()))
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    SoftCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("🌙 Last night, as the phone saw it", style = MaterialTheme.typography.titleMedium)
+            when (n.status) {
+                NightStatus.NO_DATA -> Text("No phone data for last night: the phone was off, or the usage import didn't run.")
+                NightStatus.NO_CLEAR_NIGHT -> Text("No phone-down stretch of 3 hours or more last night.")
+                NightStatus.FOUND -> {
+                    val down = n.down
+                    val up = n.up
+                    if (down != null && up != null) {
+                        Text("Down ${hm(down)} → up ${hm(up)} · ${formatMinutes(Duration.between(down, up).toMinutes().toDouble())}", style = MaterialTheme.typography.titleSmall)
+                        val late = Duration.between(n.plannedBed, down).toMinutes()
+                        Text(
+                            when {
+                                late > 0 -> "Phone down ${formatMinutes(late.toDouble())} after the planned ${hm(n.plannedBed)} bedtime."
+                                late < 0 -> "Phone down ${formatMinutes(-late.toDouble())} before the planned ${hm(n.plannedBed)} bedtime."
+                                else -> "Phone down right at the planned ${hm(n.plannedBed)} bedtime."
+                            },
+                        )
+                    } else if (up != null) {
+                        Text("Up at ${hm(up)}. The history doesn't reach back to when it went down.")
+                    }
+                    Text(
+                        if (n.interruptions == 0) {
+                            "No checks in between."
+                        } else {
+                            "You woke the phone ${n.interruptions}× (${formatMinutes(n.interruptionMinutes)})" +
+                                if (n.interruptionApps.isNotEmpty()) ": ${n.interruptionApps.joinToString()}." else "."
+                        },
+                    )
+                    n.split.forEach { (a, b) -> Text("Also down ${hm(a)} → ${hm(b)}.") }
+                    n.firstApp?.let { Text("First app this morning: $it.", color = muted) }
+                    if (n.shutdown) Text("The phone was off for part of the night, so this may read longer than it was.", color = muted)
+                }
+            }
+            Text(
+                "From phone use, not a sleep sensor: lying awake with the phone down looks the same.",
+                style = MaterialTheme.typography.bodySmall, color = muted,
             )
         }
     }

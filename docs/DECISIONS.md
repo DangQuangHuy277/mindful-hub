@@ -506,3 +506,32 @@ on a Sunday. Now:
   (schema v5) with the prompt it was on, the day part, the time chip and its position; picking
   marks it. The order is the pick rate over 30 days with one pick and one skip already counted,
   so a few offers barely move anything, and nothing is ever hidden.
+
+## D-026: Sleep tracking starts from phone use, not an in-bed tracker
+2026-10-20. **Decided (your call).** Research: [sleep/RESEARCH.md](sleep/RESEARCH.md).
+- **No in-bed tracker for now.** You used Sleep Cycle and Sleep as Android before and they didn't
+  help you manage sleep. That matches the evidence: phone-on-mattress tracking tells sleep from lying
+  awake poorly and can't stage sleep (P42, P44), and your problem is *when* you go to bed, which
+  those apps don't see. If we ever want a check on F64, a tracker's nights can be read through
+  Health Connect (H1 in OPTIONS.md).
+- **F64 phone-down night log (approved).** Each morning: phone down → up, short checks in between
+  (with the app used longest), glances, shutdowns, and the first app of the morning (G7). Labelled
+  "as the phone saw it", never "sleep". Rules v1 (`NightRules`): use = unlocked or ≥ 60 s screen-on;
+  night = gap covering most of the planned bed→wake time, ≥ 3 h; uses ≤ 20 min before the planned
+  wake with ≥ 45 min of rest after them are interruptions. Run over the real history (the 11 nights
+  of 9–19 Oct) it found every night, phone down between 00:40 and 04:54 and up between 06:31 and
+  12:35, with three 1.5–2 h stretches before midnight kept as split-night stretches.
+- **Football nights.** You sometimes watch a match at 02:00–04:00, and the long-term ideal is sleep
+  ~23:00–02:00, the match, then sleep again; for now the plan is to shift sleep gradually first.
+  So every other phone-down stretch ≥ 90 min before the wake is kept (a split night stays visible),
+  and F65 has an optional "⚽ planned late night" tag so match nights can be counted apart.
+- **F65 morning check-in (approved).** Rested 1–5 and time to fall asleep (4 buckets), 04:00–14:00,
+  skippable with no reminder. It comes first: the F61 receipt and the F64 card wait until it's
+  answered or skipped, so the numbers can't colour the answer (P45, P48).
+- **Research data.** `night_log` (schema v6) stores the facts with `rules_version` and `settled`;
+  `night_card_shown` logs each showing; `sleep_checkin` keeps asked, answered and skipped. The usage
+  import now also copies `SCREEN_ON`, `SHUTDOWN` and `STARTUP` (backfilled ~14 days on the first
+  run), and a shutdown now ends an app session, as screen-off already did.
+- **Not decided yet:** a match-night exception to the wind-down lock and the sleep quest; your work
+  days (for F66's social jetlag); whether the phone charges in the bedroom; dropping F69–F71.
+
