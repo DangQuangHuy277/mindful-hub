@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import androidx.core.content.ContextCompat
+import io.github.dangquanghuy277.mindfulhub.core.Settings
 import io.github.dangquanghuy277.mindfulhub.ui.reaction.ReactionActivity
 import java.time.Duration
 
@@ -45,7 +46,7 @@ object MorningDebug {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
-                    NUDGE -> MorningNudges.post(ctx, day = "debug", Duration.ofSeconds(intent.getIntExtra("sec", 60).toLong()), withReaction = true)
+                    NUDGE -> MorningNudges.post(ctx, day = "debug", Duration.ofSeconds(intent.getIntExtra("sec", 60).toLong()), MorningNudges.text(Settings()))
                     REACTION -> ctx.startActivity(
                         Intent(ctx, ReactionActivity::class.java)
                             .putExtra(ReactionActivity.EXTRA_PRACTICE, true)

@@ -655,5 +655,9 @@ designs D1 88%, D3 83%, D4 68%, D2 65%).
 - **Later, if still missed:** a quiet notification before wind-down (M3), not built.- **Fix (2026-10-24, your report):** the old quest card came back from 00:00 to 04:00 and after
   14:00, whenever the Last night card was hidden. Once started, the quest no longer has its own card
   at any hour; it shows in the morning card and on the lock. The old card stays only to start the
-  quest, or when both Last night switches (F64, F61) are off.
+  quest, or when both Last night switches (F64, F61) are off.- **Morning only, on purpose (your call, 2026-10-24):** the Last night card stays 04:00–14:00, so
+  last night's numbers aren't in front of you at bedtime (sleep/RESEARCH.md §6: data away from
+  bedtime, rate first; Gavriloff 2018 on negative sleep feedback). The D-030 notification now says
+  where its tap leads: "Two taps on how you slept, then last night at a glance and the 3-minute
+  reaction check."
 

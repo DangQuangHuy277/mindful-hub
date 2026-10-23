@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import io.github.dangquanghuy277.mindfulhub.core.Feature
 import io.github.dangquanghuy277.mindfulhub.core.MorningNudge
 import io.github.dangquanghuy277.mindfulhub.core.MorningWindow
+import io.github.dangquanghuy277.mindfulhub.core.Settings
 import io.github.dangquanghuy277.mindfulhub.data.MorningNudgeEntity
 import java.time.Duration
 import java.time.Instant
@@ -92,10 +93,19 @@ object MorningNudges {
                 expiresAt = expires?.toEpochMilli(), source = source,
             ),
         )
-        post(context, day.toString(), expires?.let { Duration.between(now, it) }, withReaction = s.on(Feature.REACTION_CHECK))
+        post(context, day.toString(), expires?.let { Duration.between(now, it) }, text(s))
     }
 
-    internal fun post(context: Context, day: String, clearsAfter: Duration?, withReaction: Boolean) {
+    /** Says what the tap leads to (D-032): the check-in, then last night's card, then the reaction check. */
+    internal fun text(s: Settings): String {
+        val next = buildList {
+            if (s.on(Feature.NIGHT_LOG) || s.on(Feature.MORNING_RECEIPT)) add("last night at a glance")
+            if (s.on(Feature.REACTION_CHECK)) add("the 3-minute reaction check")
+        }
+        return "Two taps on how you slept" + if (next.isEmpty()) "." else ", then " + next.joinToString(" and ") + "."
+    }
+
+    internal fun post(context: Context, day: String, clearsAfter: Duration?, text: String) {
         val open = PendingIntent.getActivity(
             context, NOTIFICATION_ID,
             Intent(context, MainActivity::class.java)
@@ -111,7 +121,8 @@ object MorningNudges {
         val n = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_day)
             .setContentTitle("☀️ Good morning")
-            .setContentText(if (withReaction) "Two taps on how you slept, then the 3-minute reaction check." else "Two taps on how you slept.")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .setDeleteIntent(dismissed)
             .setAutoCancel(true)
