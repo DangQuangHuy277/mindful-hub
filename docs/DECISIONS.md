@@ -556,3 +556,60 @@ nights, with its own switch.
 - **Later, maybe:** your ideal of sleeping ~23:00–02:00 before a match, then sleeping again. F64
   already keeps both stretches; a "first sleep" wind-down before the match isn't built.
 
+## D-028: Energy tracking starts phone-only: no watch, no work data for now
+2026-10-23. **Decided (your call: "I don't think we will buy a watch or track the work information yet").**
+Research: [energy/RESEARCH.md](energy/RESEARCH.md) §9.
+- **Parked, not dropped:** H2 (wearable reader), F82 (work-PC focus log), F83 (work-tracker
+  import), F84 (calendar meeting load), F86 (typing speed on the PC). Any of them can come back with
+  a new decision.
+- **What's left is the phone plus your own answers**: F64 phone-down night log and F65 morning
+  check-in (built), phone use by hour (built), F77 steps, F74 intake taps, F73 alertness and mood
+  check-ins, F76 end-of-day card, the weekly WHO-5 (built), and F75 reaction-time check.
+- **What this costs:** sleep stays measured as the phone-down window plus your rested rating (P42),
+  and there's no night-recovery signal unless F85 (camera HRV) is built later. F76 is your own
+  rating of the workday; nothing is read from work systems.
+- **Why F75 matters more now:** without a watch, the 3-minute reaction-time check is the only
+  objective measure of sharpness, and P50 says ratings alone miss sleep debt.
+- **Not decided yet:** which F73–F81 features to build (none are approved yet).
+
+## D-029: No energy or food taps during work hours; food logged after the fact
+2026-10-23. **Decided (your call: "I don't want to tap the phone when I am in the workday (lunch is
+ok)"; you rarely drink coffee or alcohol, and snack when you have time).** Refines D-028.
+- **Quiet work hours.** The energy and food features never prompt, notify or ask for a tap during
+  the work part of the day in `Schedule` (10:00–19:00 on work days, see `core/DayParts.kt`). Lunch
+  (11:45–13:00) is allowed.
+- **The day's touch points:** morning check-in (F65, built) · lunch card: alertness + mood, and a
+  lunch-walk offer (F73, F81) · after-work card: alertness + mood now, focus, main thing done,
+  afternoon break taken, lunch size, snacks (F76 with F73 and F74) · wind-down: "could you switch
+  off?" (F76) · optional 3-min reaction test (F75), outside work hours at the same time each day.
+- **Food:** no caffeine or alcohol buttons; F79 (caffeine cut-off) isn't needed. Snacks are asked in
+  the after-work card by part of the day (morning, afternoon, evening) and whether they were sweet,
+  so there are no exact times. A rare coffee or drink can still be added there.
+- **What this costs:** the afternoon is only seen from the after-work card, a same-day recall rather
+  than an in-the-moment rating, and it tends to remember the end of the afternoon more than the dip
+  (from memory: the peak-end effect). The mid-afternoon break nudge moves to lunch.
+- **Passive data still covers work hours:** phone use by hour (pickups during work are a distraction
+  signal you don't have to report) and F77 steps.
+
+## D-030: The morning check-in gets one notification after the first unlock
+2026-10-23. **Decided (your call: "notification after first unlock").** Changes F65's "no reminder"
+from D-026.
+- **Why:** since the F65 install (2026-10-20), the app was opened only in the evening and at night,
+  so the check-in, which only appears on Today between 04:00 and 14:00, was never shown and
+  `sleep_checkin` stayed empty.
+- **The rule:** one quiet notification after the first unlock of the logical day, between 04:00
+  and the start of work hours (D-029), once a day, never repeated. It clears itself when work
+  starts or when the check-in is answered or skipped. Tapping it opens the check-in.
+- **Data:** the notification's posting, tap and expiry are logged with the check-in's night, so "never
+  asked" and "ignored" stay apart.
+- **Also proposed (not approved yet):** the F75 reaction test runs right after the check-in, as a
+  mini-game whose timing rules stay identical to PVT-B. Evidence: [energy/RESEARCH.md](energy/RESEARCH.md) §10.
+- **Built (2026-10-23):** the nudge, and F75 as a trial with its own switch ("Morning reaction
+  check"). Correction: PVT-B's wait is 1–4 s from each response (including 1 s of feedback), not
+  2–10 s (that's the 10-minute PVT); the code follows the paper (`Pvtb` in `core/Reaction.kt`).
+  Your usual = the median of your last 14 mornings; "about your usual" is ±8%, our own choice.- **Length (your call, 2026-10-23): 3 minutes every morning, reviewed after one week.** Shorter fixed
+  versions aren't validated; the adaptive PVT-BA (~1 min 43 s) gives only three grades; fewer
+  mornings would keep quality. Comparison: [energy/RESEARCH.md](energy/RESEARCH.md) §10.
+- **Testing aid:** `MorningDebug.kt` (debug builds only, sender needs DUMP) posts a test nudge and
+  opens a practice run that saves nothing, so the phone can be checked at any hour (A6).
+

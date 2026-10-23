@@ -5,7 +5,8 @@ being built; everything else is still an option. Approved work moves to GitHub i
 up (D-021). This collects every option
 from [FEATURES-V1.md](FEATURES-V1.md) (F01–F24), [RESEARCH-TIME.md](RESEARCH-TIME.md) (F25–F37,
 F55–F63) and [gamification/RESEARCH-GAMIFICATION.md](gamification/RESEARCH-GAMIFICATION.md) (F38–F54) and
-[sleep/RESEARCH.md](sleep/RESEARCH.md) (F64–F71, plus A7 and H1), and adds what's already
+[sleep/RESEARCH.md](sleep/RESEARCH.md) (F64–F71, plus A7 and H1) and
+[energy/RESEARCH.md](energy/RESEARCH.md) (F73–F86, plus H2), and adds what's already
 built and what depends on what.
 
 **How to read the scores.** Each doc scored with slightly different criteria (max 45, 55 or 65), so
@@ -58,6 +59,33 @@ cheap ×1; max 45). Not approved yet.
 | F67 (ours) | Bed-scroll experiment: alternate weeks with the bed scroll on and off | 80% | F64, F65, F03, F23 | Answers your F03 note. After ~2 weeks of baseline |
 | A7 | Google Sleep API cross-check | 64% | F64 | Free signal from Play Services, not publicly validated |
 | H1 | Health Connect sleep reader (any tracker or watch) | 60% | F64 | Only to check F64 against a tracker; you found the apps didn't help before |
+
+## Energy, food and focus (2026-10-23): the measurement layer, from [energy/RESEARCH.md](energy/RESEARCH.md)
+
+Same weights as the sleep table (evidence ×3, fits your question ×3, low burden and risk ×2, cheap
+×1; max 45), proposed. Not approved yet. The research doc recommends F73 + F74 + F76 + F77 as a
+3-week baseline that shows nothing back, F75 as a 2-week trial, then F78, F79 and F81, then
+experiments one at a time.
+
+| ID | Feature | Score | Depends on | Notes |
+|---|---|---|---|---|
+| F79 | Caffeine cut-off line: last coffee by bedtime − 8.8 h | 93% | F74, F03 | **Not needed (D-029)**: you rarely drink coffee |
+| F73 | Energy check: KSS alertness + mood, at lunch and after work (never in work hours, D-029) | 82% | F64 | The outcome measure everything else needs. One new notification per workday (lunch); the after-work one is F76 |
+| F74 | Food log, after the fact (D-029): lunch size, snacks by part of day (sweet or not); a rare drink or coffee | 82% | F76 | Asked in the after-work card, not tapped at work. No calories |
+| F76 | After-work card: alertness + mood now, focus 1–5, main thing done, afternoon break, snacks; "could you switch off?" at night | 82% | F03 | Merges F73's last anchor and F74. About 15 s, once a day |
+| F81 | Lunch-walk nudge: a 10–15 min walk outside after lunch, offered on the lunch card (D-029) | 80% | F73, F26 | Moved from mid-afternoon, which is work time. Lunchtime park walks: Sianoja 2018 |
+| F75 | Reaction-time check (PVT-B, 3 min), optional. **Built as a trial (2026-10-23, D-030)** | 76% | — | You can't feel sleep debt (P50). Without a watch it's the only objective measure (D-028). Morning only, after F65, as a mini-game with fixed rules (2026-10-23). Trial for 2 weeks |
+| F80 (ours) | Daytime experiments on F23: lunch walk, light lunch, fewer sweet snacks | 76% | F23, F73 | One at a time, after F67 |
+| F78 | Weekly energy map: alertness by hours since waking, with meal and snack markers | 73% | F73, F74, F11 | After ≥ 2 weeks. No score |
+| F77 | Steps per hour from the phone's step counter | 71% | — | New permission (physical activity) |
+| F82 | Work-PC focus log (ActivityWatch), joined by time | 60% | — | **Parked (D-028)**: no work data for now |
+| H2 | Wearable reader: sleep timing, resting HR, night HRV, steps (Health Connect or Gadgetbridge) | 73% | — | **Parked (D-028)**: no watch for now |
+| F83 | Work-tracker import: block times + a category, never task titles | 67% | — | **Parked (D-028)**: no work data for now |
+| F84 | Calendar meeting load (times only) | 64% | — | **Parked (D-028)**: no work data for now |
+| F85 | Morning camera HRV (1 min, fingertip) | 64% | — | The only night-recovery signal left without a watch (D-028). After the baseline, if Q2/Q3 need it |
+| F86 | Typing and click speed on the PC (timings only) | 60% | F82 | **Parked (D-028)**: no work data for now |
+
+Out: calorie or macro counting (27%), GPS mobility (36%), photo food diary (40%), water logging.
 
 ## Proposed for v1.1 (not approved): the good-week layer and stronger friction
 
