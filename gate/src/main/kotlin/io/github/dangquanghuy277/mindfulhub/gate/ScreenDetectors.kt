@@ -8,8 +8,12 @@ import io.github.dangquanghuy277.mindfulhub.core.Screen
  *
  * Facebook strips its view IDs (they read "(name removed)"), so the detectors match the
  * accessibility labels of fixed UI controls, never post content. Nothing they read is stored;
- * only the [Screen] label leaves this file. Labels are English; a Vietnamese UI would need its own.
- * Verified on Facebook for Android, 2026-10-18 (uiautomator dump of the Reels tab).
+ * only the [Screen] label leaves this file. Facebook follows the phone's language, so each label
+ * matches English and Vietnamese: the English-only labels missed every Reels visit once the phone
+ * was in Vietnamese ("Reels, Tab 2/6"). Verified on Facebook for Android, 2026-10-18 (English) and
+ * 583.0.0.39.55, 2026-10-23 (Vietnamese).
+ *
+ * YouTube keeps its view IDs, which don't change with the language. Verified on 21.42.243.
  */
 /**
  * What a detector saw. [escape] is a control that leaves the short-video screen (e.g. Facebook's
@@ -18,14 +22,24 @@ import io.github.dangquanghuy277.mindfulhub.core.Screen
 class Detection(val screen: Screen, val escape: AccessibilityNodeInfo? = null)
 
 object ScreenDetectors {
-    private val FB_REELS_TAB = Regex("^Reels, tab \\d+ of \\d+$")
-    private val FB_HOME_TAB = Regex("^Home, tab \\d+ of \\d+$")
-    private val FB_REELS_MARKERS = setOf("Reels tab details", "Navigate to your Reels profile")
+    // "Reels, tab 2 of 6" (English) or "Reels, Tab 2/6" (Vietnamese).
+    private val FB_REELS_TAB = Regex("^Reels, [Tt]ab \\d+(?: of |/)\\d+$")
+    // Home is always the first tab: "Home, tab 1 of 6" or "Trang chủ, Tab 1/6".
+    private val FB_HOME_TAB = Regex("^.+, [Tt]ab 1(?: of |/)\\d+$")
+    private val FB_REELS_MARKERS = setOf(
+        "Reels tab details", "Navigate to your Reels profile",
+        "Chi tiết về tab Reels", "Chuyển đến trang cá nhân Reels của bạn",
+    )
+
+    /** The Shorts player, in the Shorts tab or opened from a shelf or link. Gone once you leave. */
+    private const val YT_SHORTS_PLAYER = "com.google.android.youtube:id/reel_player_page_container"
+    private const val YT_TAB_BAR = "com.google.android.youtube:id/pivot_bar"
 
     fun detect(pkg: String, root: AccessibilityNodeInfo?): Detection {
         root ?: return Detection(Screen.APP)
         return when (pkg) {
             "com.facebook.katana" -> facebook(root)
+            "com.google.android.youtube" -> youtube(root)
             else -> Detection(Screen.APP)
         }
     }
@@ -40,6 +54,19 @@ object ScreenDetectors {
             reels && home != null
         }
         return if (reels) Detection(Screen.SHORT_VIDEO, home?.let(::clickableSelfOrParent)) else Detection(Screen.APP)
+    }
+
+    /**
+     * Shorts, wherever they were opened. Back leaves a Short opened from the feed but not the
+     * Shorts *tab*, so the escape is the tab bar's first button (Home) when the bar is there.
+     */
+    private fun youtube(root: AccessibilityNodeInfo): Detection {
+        if (root.findAccessibilityNodeInfosByViewId(YT_SHORTS_PLAYER).isEmpty()) return Detection(Screen.APP)
+        var home: AccessibilityNodeInfo? = null
+        root.findAccessibilityNodeInfosByViewId(YT_TAB_BAR).firstOrNull()?.let { bar ->
+            walk(bar, budget = 20) { node -> (node !== bar && node.isClickable).also { if (it) home = node } }
+        }
+        return Detection(Screen.SHORT_VIDEO, home)
     }
 
     private fun clickableSelfOrParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {

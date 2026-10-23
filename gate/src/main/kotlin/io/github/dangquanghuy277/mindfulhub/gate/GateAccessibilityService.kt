@@ -108,6 +108,8 @@ class GateAccessibilityService : AccessibilityService() {
     private var sentHome: Pair<String, Long>? = null
     /** D-025: offers and picks per item, refreshed after each pick. */
     private var insteadStats: Map<String, OfferStats> = emptyMap()
+    private val debugBypass = DebugBypass(::debugAllow, ::debugDump)
+    private var debugBypassOn = false
 
     override fun onServiceConnected() {
         deps = (application as GateHost).gateDeps
@@ -131,7 +133,33 @@ class GateAccessibilityService : AccessibilityService() {
             deps.stamps.insertStatus(GateStatusEntity(ts = at, state = "CONNECTED"))
         }
         restoreSessions()
+        debugBypassOn = debugBypass.register(this)
         connected = this
+    }
+
+    /** [DebugBypass]: a time box with no prompt and no rows, so testing leaves the study alone. */
+    private fun debugAllow(pkg: String, minutes: Int) {
+        val start = Instant.now()
+        val session = ActiveSession(pkg, Purpose.JUST_BORED, start, start.plus(Duration.ofMinutes(minutes.toLong())))
+        sessions[pkg] = session
+        if (promptingFor == pkg) closePrompt()
+        main.postDelayed({ onTimeBoxEnd(session) }, Duration.ofMinutes(minutes.toLong()).toMillis())
+        Log.i(TAG, "debug: $pkg allowed for $minutes min")
+    }
+
+    /** [DebugBypass.DUMP]: what a detector would read, one node per line. */
+    private fun debugDump() {
+        val root = rootInActiveWindow
+        Log.i(TAG, "dump: fg=$foreground top=${topApp()} root=${root?.packageName}")
+        fun visit(n: android.view.accessibility.AccessibilityNodeInfo, depth: Int) {
+            val desc = n.contentDescription?.toString().orEmpty()
+            val text = n.text?.toString().orEmpty().take(40)
+            if (desc.isNotEmpty() || text.isNotEmpty() || n.viewIdResourceName != null) {
+                Log.i(TAG, "dump: ${"  ".repeat(depth)}${n.className?.toString()?.substringAfterLast('.')} id=${n.viewIdResourceName} desc=\"$desc\" text=\"$text\" sel=${n.isSelected} click=${n.isClickable}")
+            }
+            for (i in 0 until n.childCount) n.getChild(i)?.let { visit(it, depth + 1) }
+        }
+        root?.let { visit(it, 0) }
     }
 
     private fun settingsOn(day: LocalDate): Settings = SettingsStore.decode(settingRows, day)
@@ -251,6 +279,7 @@ class GateAccessibilityService : AccessibilityService() {
         }
         val escaped = escape?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true
         if (!escaped) performGlobalAction(GLOBAL_ACTION_BACK)
+        Log.i(TAG, "blocked short video in $pkg: ${if (escaped) "tapped \"${escape?.contentDescription}\"" else "Back"}")
         val dismiss = {
             overlay.dismiss()
             suppressDetectUntil = SystemClock.uptimeMillis() + 1_000
@@ -670,6 +699,7 @@ class GateAccessibilityService : AccessibilityService() {
             logScope.launch { stamps.insertStatus(GateStatusEntity(ts = System.currentTimeMillis(), state = "DESTROYED")) }
         }
         connected = null
+        if (debugBypassOn) unregisterReceiver(debugBypass)
         overlay.destroy()
         main.removeCallbacksAndMessages(null)
         main.removeCallbacks(confirmLeave)

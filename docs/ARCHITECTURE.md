@@ -144,8 +144,14 @@ UI view IDs *will* change, so each detector has a fallback to "APP_OPEN only" an
 1. ✅ `TYPE_ACCESSIBILITY_OVERLAY` works without "Display over other apps".
 2. ✅ FB Reels **tab**: no view IDs; detected by the selected "Reels, tab N of M" label or the
    "Reels tab details" button. Back does *not* leave a tab, so the block taps FB's "Home, tab 1 of
-   N" instead (otherwise it loops). Still to check: Reels opened from a feed post; Instagram;
-   YouTube Shorts.
+   N" instead (otherwise it loops). Still to check: Instagram.
+   **2026-10-23:** FB follows the phone's language. In Vietnamese the labels read "Reels, Tab 2/6"
+   and "Chi tiết về tab Reels", so the English-only match missed every Reels visit after 10-18
+   (8 blocks that day, none since). Labels now match both. A reel opened from a feed post is
+   caught too (Back leaves it). YouTube Shorts: the `reel_player_page_container` view ID (YouTube
+   keeps IDs), escaping via the tab bar's first button (Home); a Shorts *shelf* on Home is not
+   blocked. Test with the debug-only `DEBUG_ALLOW` / `DEBUG_DUMP` broadcasts (`DebugBypass.kt`),
+   not `uiautomator dump`: it unbinds the gate.
 3. ✅ `queryEvents` returned history back to 9 Oct: **~9 days** on day 1.
 4. ✅ Prompt latency **136–270 ms** after the window event (N4).
 5. ⚠️ After D-021 the prompt came **650–700 ms** after the event (2026-10-19). Three waits had
