@@ -652,5 +652,8 @@ designs D1 88%, D3 83%, D4 68%, D2 65%).
   "Sleep shift, chapter 2 of 7: these times move 15 min earlier every 3 days." Exposure is the
   existing `gate_event` LOCK row plus the versioned switch. Not yet seen on the phone: it needs a
   real wind-down lock.
-- **Later, if still missed:** a quiet notification before wind-down (M3), not built.
+- **Later, if still missed:** a quiet notification before wind-down (M3), not built.- **Fix (2026-10-24, your report):** the old quest card came back from 00:00 to 04:00 and after
+  14:00, whenever the Last night card was hidden. Once started, the quest no longer has its own card
+  at any hour; it shows in the morning card and on the lock. The old card stays only to start the
+  quest, or when both Last night switches (F64, F61) are off.
 

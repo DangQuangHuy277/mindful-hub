@@ -88,11 +88,13 @@ fun TodayScreen(vm: TodayViewModel, onOpenReview: () -> Unit) {
             state.postcard?.let { PostcardCard(it) }
             if (state.checkInNight != null) CheckInCard(state.checkInPlannedLate, vm::answerCheckIn, vm::skipCheckIn)
             if (state.reactionDue) ReactionCard()
-            // D-032: a started quest lives in the morning's Last night card; its own card is the fallback.
+            // D-032: a started quest lives in the morning's Last night card (04:00–14:00) and on the
+            // wind-down lock, at every hour. Its own card is only for starting it, or when both of the
+            // Last night card's switches are off and it would have nowhere else to show.
             val lastNight = state.nightCard != null || state.receipt != null
-            val questInLastNight = state.quest?.takeIf { lastNight && it.started }
-            if (lastNight) LastNightCard(state.nightCard, state.receipt, questInLastNight, state.night?.phase == NightPhase.DAY, vm::holdChapter)
-            state.quest?.takeIf { questInLastNight == null }?.let { QuestCard(it, state.night?.phase, vm::startQuest, vm::holdChapter) }
+            val questFolded = state.quest?.started == true && (s.on(Feature.NIGHT_LOG) || s.on(Feature.MORNING_RECEIPT))
+            if (lastNight) LastNightCard(state.nightCard, state.receipt, state.quest?.takeIf { questFolded }, state.night?.phase == NightPhase.DAY, vm::holdChapter)
+            state.quest?.takeIf { !questFolded }?.let { QuestCard(it, state.night?.phase, vm::startQuest, vm::holdChapter) }
             if (state.reviewDue) ReviewDueCard(onOpenReview)
             state.feedUsed?.let { FeedsCard(it, s.feedBudgetMinutes) }
             if (s.on(Feature.WEEK_PLAN)) PlanTodayCard(state.plan, state.hasPlanThisWeek, vm::markPlan, onOpenReview)
