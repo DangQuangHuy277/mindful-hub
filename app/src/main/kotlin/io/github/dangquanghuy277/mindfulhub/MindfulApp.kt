@@ -64,6 +64,9 @@ class AppContainer(context: Context) {
     // F64 + F65 (SleepData.kt).
     val nightLog = NightLogStore(db.nights(), usage, clock, settingsStore)
     val checkIns = db.checkIns()
+    // D-030 + F75 (MorningData.kt).
+    val morningNudges = db.morningNudges()
+    val reactions = db.reactions()
 
     /** A6: the whole database to Downloads; returns the file name. */
     suspend fun exportData(): String = DataExport.toDownloads(app, db)
@@ -108,6 +111,9 @@ class MindfulApp : Application(), GateHost {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(PlanReminders.CHANNEL, "Planned good things", NotificationManager.IMPORTANCE_DEFAULT),
         )
+        MorningNudges.createChannel(this)
+        MorningNudges.listenForUnlock(this)
+        MorningDebug.register(this)
         // Android keeps only a short event history, so copy it hourly before it ages out.
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "usage-import",
@@ -132,6 +138,8 @@ class UsageImportWorker(context: Context, params: WorkerParameters) : CoroutineW
         c.importer.importNew()
         // F64: nights are logged even on mornings you don't open the app.
         if (c.settingsStore.on(c.clock.dayOf(Instant.now())).on(Feature.NIGHT_LOG)) runCatching { c.nightLog.update(Instant.now()) }
+        // D-030: the morning nudge, if the unlock broadcast was missed.
+        runCatching { MorningNudges.checkFromHistory(applicationContext, Instant.now()) }
 
         val to = Instant.now()
         val from = to.minus(Duration.ofHours(1))

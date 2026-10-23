@@ -54,6 +54,7 @@ import io.github.dangquanghuy277.mindfulhub.ui.GateOffCard
 import io.github.dangquanghuy277.mindfulhub.ui.GateOnPill
 import io.github.dangquanghuy277.mindfulhub.ui.NotificationPermission
 import io.github.dangquanghuy277.mindfulhub.ui.formatMinutes
+import io.github.dangquanghuy277.mindfulhub.ui.reaction.ReactionActivity
 import io.github.dangquanghuy277.mindfulhub.ui.greeting
 import io.github.dangquanghuy277.mindfulhub.ui.rememberFormatter
 import java.time.Duration
@@ -86,6 +87,7 @@ fun TodayScreen(vm: TodayViewModel, onOpenReview: () -> Unit) {
             HelloCard(state.hello, state.plan.firstOrNull { it.status == null })
             state.postcard?.let { PostcardCard(it) }
             if (state.checkInNight != null) CheckInCard(state.checkInPlannedLate, vm::answerCheckIn, vm::skipCheckIn)
+            if (state.reactionDue) ReactionCard()
             state.receipt?.let { ReceiptCard(it) }
             state.nightCard?.let { NightLogCard(it) }
             state.quest?.let { QuestCard(it, state.night?.phase, vm::startQuest, vm::holdChapter) }
@@ -173,6 +175,19 @@ private fun CheckInCard(plannedLate: Boolean, onAnswer: (Int, SleepLatency, Bool
                 }
             }
             TextButton(onClick = { onSkip(late) }) { Text("Skip today") }
+        }
+    }
+}
+
+/** F75 (trial): the morning reaction check opens full screen; the card disappears once it's done. */
+@Composable
+private fun ReactionCard() {
+    val context = LocalContext.current
+    SoftCard(tone = CardTone.Accent) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("⭐ Morning reaction check · trial", style = MaterialTheme.typography.titleMedium)
+            Text("3 minutes: tap as soon as the star appears. It shows what sleep debt does even when you feel fine.")
+            PillButton("Start", onClick = { context.startActivity(Intent(context, ReactionActivity::class.java)) }, emoji = "⭐", tone = PillTone.Accent)
         }
     }
 }

@@ -208,11 +208,13 @@ data class GateSummaryRow(val decision: String, val outcome: String?, val n: Int
         InsteadOfferEntity::class,
         // v6: F64 night log and F65 morning check-in (SleepData.kt).
         NightLogEntity::class, NightCardShownEntity::class, SleepCheckInEntity::class,
+        // v7: D-030 morning nudge and F75 reaction check (MorningData.kt).
+        MorningNudgeEntity::class, ReactionRunEntity::class, ReactionOfferEntity::class,
     ],
-    version = 6,
+    version = 7,
     autoMigrations = [
         AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4),
-        AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7),
     ],
 )
 abstract class MindfulDatabase : RoomDatabase() {
@@ -227,6 +229,8 @@ abstract class MindfulDatabase : RoomDatabase() {
     abstract fun insteadOffers(): InsteadOfferDao
     abstract fun nights(): NightLogDao
     abstract fun checkIns(): CheckInDao
+    abstract fun morningNudges(): MorningNudgeDao
+    abstract fun reactions(): ReactionDao
 
     companion object {
         fun create(context: Context): MindfulDatabase =

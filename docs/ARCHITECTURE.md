@@ -214,6 +214,8 @@ one can be turned off today and deleted later.
 | F64 night log | `NightLog`, `NightRules`, `NightFacts` (NightLog.kt); `SCREEN_ON`/`SHUTDOWN`/`STARTUP` in `UsageEventType` | `night_log`, `night_card_shown` (SleepData.kt) | — | `nightCardFor`, `NightLogCard`; `UsageImportWorker` keeps it current |
 | F65 morning check-in | `MorningCheckIn`, `SleepLatency` (CheckIn.kt) | `sleep_checkin` (SleepData.kt) | — | `checkInFor`, `CheckInCard`; hides F61 and F64 until answered |
 | F72 match nights | `MatchNight`, `MatchNights`, `Settings.matchOn` (Match.kt); `GateRules.matchUntil`, `GatePolicy.MATCH_BOX` | — (setting `matchNights`) | `rulesFor` | `MatchNightsCard` (Settings); ticks F65's tag, a line on F64's card |
+| D-030 morning nudge | `MorningNudge` (MorningNudge.kt); `MorningWindow` (CheckIn.kt) | `morning_nudge` (MorningData.kt) | — | `MorningNudges.kt` (unlock receiver, notification, `NudgeDismissedReceiver`); fallback in `UsageImportWorker`; tap logged in `MainActivity` |
+| F75 reaction check (trial) | `Pvtb`, `PvtRun`, `PvtScoring`, `ReactionUsual` (Reaction.kt) | `reaction_run`, `reaction_offer` (MorningData.kt) | — | `ReactionCard` (Today), `ui/reaction/ReactionActivity.kt` |
 | F17 calm links (trial) | `CalmLinks` (Plan.kt) | — | — | `CalmLinksCard` |
 
 **Copy rules (F32)**, for every screen: suggest ("want to…?", "could"), never order. State the task
@@ -224,7 +226,10 @@ up. A slip day gets "welcome back" and one next step. Every Instead line says wh
 **Unverified on the phone** (built and unit-tested, not yet tried on the S22): typing in the overlay
 (the postcard field), the Clock app's timer from the gate, the toast after leaving early, plan
 reminders, the F64 and F65 morning cards (both only show 04:00–14:00; the F64 rules were run over
-the real history from 9–20 Oct, see D-026).
+the real history from 9–20 Oct, see D-026), the D-030 morning nudge (only fires in the morning
+window), and a full 3-minute F75 run with its saved row and closing line. Checked on the S22 on
+2026-10-23: the v7 migration, the `morning` channel, and F75's intro, star and reaction-time
+feedback (through a temporary exported build; the run was stopped before it saved).
 
 ### Night log (F64): how a night is found
 ```

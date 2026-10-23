@@ -28,5 +28,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- F75: the 3-minute reaction check, full screen and upright. A rotation or theme change
+             must not restart the activity, or the run would end. -->
+        <activity
+            android:name=".ui.reaction.ReactionActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
+        <!-- D-030: logs a swiped-away morning nudge. Only our own PendingIntent reaches it. -->
+        <receiver
+            android:name=".NudgeDismissedReceiver"
+            android:exported="false" />
     </application>
 </manifest>

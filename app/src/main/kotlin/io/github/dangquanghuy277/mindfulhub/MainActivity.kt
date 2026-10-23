@@ -1,5 +1,6 @@
 package io.github.dangquanghuy277.mindfulhub
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,7 +15,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -38,9 +41,24 @@ class MainActivity : ComponentActivity() {
         val bars = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
         val container = (application as MindfulApp).container
+        if (savedInstanceState == null) openedFromNudge(intent)
         setContent {
-            MindfulTheme { AppRoot(container) }
+            MindfulTheme { AppRoot(container, todayRequests) }
         }
+    }
+
+    /** D-030: bumped when the morning nudge is tapped, so the app lands on Today. */
+    private var todayRequests by mutableIntStateOf(0)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openedFromNudge(intent)
+    }
+
+    private fun openedFromNudge(intent: Intent?) {
+        if (intent?.hasExtra(MorningNudges.EXTRA_DAY) != true) return
+        MorningNudges.tapped(this, intent)
+        todayRequests++
     }
 }
 
@@ -53,8 +71,9 @@ private enum class Tab(val label: String, val emoji: String) {
 }
 
 @Composable
-private fun AppRoot(container: AppContainer) {
+private fun AppRoot(container: AppContainer, todayRequests: Int) {
     var tab by rememberSaveable { mutableStateOf(Tab.TODAY) }
+    LaunchedEffect(todayRequests) { if (todayRequests > 0) tab = Tab.TODAY }
     val app = (androidx.compose.ui.platform.LocalContext.current.applicationContext as MindfulApp)
     Scaffold(
         bottomBar = {

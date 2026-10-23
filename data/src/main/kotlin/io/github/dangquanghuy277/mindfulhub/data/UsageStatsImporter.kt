@@ -72,6 +72,12 @@ class UsageRepository(private val dao: AppEventDao) {
     /** How far back our own copy of the history goes (spike item 3 in ARCHITECTURE.md). */
     suspend fun historySince(): Instant? = dao.earliestTs()?.let(Instant::ofEpochMilli)
 
+    /** The first unlock in [from, to), for D-030 and F75 (time since the morning's first unlock). */
+    suspend fun firstUnlock(from: Instant, to: Instant): Instant? =
+        dao.between(from.toEpochMilli(), to.toEpochMilli())
+            .firstOrNull { it.type == UsageEventType.UNLOCK.name }
+            ?.let { Instant.ofEpochMilli(it.ts) }
+
     /** Packages that were in the foreground in [from, to), per the system's own record. */
     suspend fun foregroundPackages(from: Instant, to: Instant): Set<String> =
         dao.between(from.toEpochMilli(), to.toEpochMilli())

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dangquanghuy277.mindfulhub.AppContainer
+import io.github.dangquanghuy277.mindfulhub.MorningNudges
 import io.github.dangquanghuy277.mindfulhub.PlanReminders
 import io.github.dangquanghuy277.mindfulhub.core.AppSession
 import io.github.dangquanghuy277.mindfulhub.core.Category
@@ -12,6 +13,7 @@ import io.github.dangquanghuy277.mindfulhub.core.Feature
 import io.github.dangquanghuy277.mindfulhub.core.FeedBudget
 import io.github.dangquanghuy277.mindfulhub.core.MatchNight
 import io.github.dangquanghuy277.mindfulhub.core.MorningCheckIn
+import io.github.dangquanghuy277.mindfulhub.core.MorningWindow
 import io.github.dangquanghuy277.mindfulhub.core.matchOn
 import io.github.dangquanghuy277.mindfulhub.core.NightStatus
 import io.github.dangquanghuy277.mindfulhub.core.SleepLatency
@@ -31,6 +33,7 @@ import io.github.dangquanghuy277.mindfulhub.core.WeekPlan
 import io.github.dangquanghuy277.mindfulhub.core.Weeks
 import io.github.dangquanghuy277.mindfulhub.core.sleepTimes
 import io.github.dangquanghuy277.mindfulhub.data.GoodThingEntity
+import io.github.dangquanghuy277.mindfulhub.data.ReactionOfferEntity
 import io.github.dangquanghuy277.mindfulhub.data.SleepCheckInEntity
 import io.github.dangquanghuy277.mindfulhub.data.millisOf
 import io.github.dangquanghuy277.mindfulhub.data.toCore
@@ -91,6 +94,8 @@ data class TodayUiState(
     /** F72: last night was a planned match night, so "planned late night" starts ticked. */
     val checkInPlannedLate: Boolean = false,
     val nightCard: NightCard? = null,
+    /** F75 (trial): offer the morning reaction check, after the check-in and before work. */
+    val reactionDue: Boolean = false,
     val quest: QuestState? = null,
     val feedUsed: Double? = null,
     val plan: List<PlanItem> = emptyList(),
@@ -121,6 +126,7 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
             val goodWeek = c.goodThings.between(weekFrom, weekTo).map { it.toCore() }
             val plan = c.plans.week(weekStart.toString()).map { it.toCore() }
             val checkInNight = checkInFor(s, now)
+            val reactionDue = reactionDueFor(s, now, today, checkInNight)
             if (s.on(Feature.WEEK_PLAN)) PlanReminders.schedule(app, plan, c.clock, now)
             _state.update {
                 it.copy(
@@ -135,6 +141,7 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
                     quest = questOf(s, today),
                     postcard = postcardFor(s, now, today),
                     checkInNight = checkInNight,
+                    reactionDue = reactionDue,
                     checkInPlannedLate = checkInNight?.let { n -> c.settingsStore.on(n).matchOn(n) != null } ?: false,
                 )
             }
@@ -201,6 +208,18 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
         return night
     }
 
+    /**
+     * F75: after the check-in (so the result can't colour it, P45), inside the morning window (never
+     * in work hours, D-029), until today's run is complete. The first showing is logged.
+     */
+    private suspend fun reactionDueFor(s: Settings, now: Instant, today: LocalDate, checkInNight: LocalDate?): Boolean {
+        if (!s.on(Feature.REACTION_CHECK) || checkInNight != null) return false
+        if (!MorningWindow.contains(today, s, c.clock, now)) return false
+        if (c.reactions.completedOn(today.toString()) > 0) return false
+        c.reactions.offered(ReactionOfferEntity(today.toString(), now.toEpochMilli()))
+        return true
+    }
+
     fun answerCheckIn(rested: Int, latency: SleepLatency, plannedLate: Boolean) = checkIn { night, at ->
         c.checkIns.answer(night, at, rested, latency.name, plannedLate)
     }
@@ -211,6 +230,7 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
         val night = _state.value.checkInNight ?: return
         viewModelScope.launch {
             write(night.toString(), System.currentTimeMillis())
+            MorningNudges.clear(app)
             refresh()
         }
     }
