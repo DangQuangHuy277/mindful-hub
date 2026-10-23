@@ -209,9 +209,10 @@ one can be turned off today and deleted later.
 | F03 wind-down | `NightClock`, `LockReason.WIND_DOWN`, `Purpose.BED_SCROLL` (Night.kt) | — | `showLocked` | Settings steppers |
 | F31 + F53 postcard | `GateRules.postcardDue` | `postcard` | `PostcardBox`, `savePostcard` | `PostcardCard` |
 | D-025 instead learns | `InsteadMenu.rank`, `OfferStats` | `instead_offer` (InsteadData.kt) | `insteadHooks`, `refreshInsteadStats` | — |
-| F13 + F44 sleep quest (trial) | `SleepQuest`, `Settings.sleepTimes` | — (settings) | — | `QuestCard` |
-| F61 morning receipt (trial) | — | — | — | `receiptFor`, `ReceiptCard` |
-| F64 night log | `NightLog`, `NightRules`, `NightFacts` (NightLog.kt); `SCREEN_ON`/`SHUTDOWN`/`STARTUP` in `UsageEventType` | `night_log`, `night_card_shown` (SleepData.kt) | — | `nightCardFor`, `NightLogCard`; `UsageImportWorker` keeps it current |
+| F13 + F44 sleep quest (trial) | `SleepQuest`, `Settings.sleepTimes` | — (settings) | — | `QuestStrip` and the chapter chip in `LastNightCard.kt` once started (D-032); `QuestCard` to start it, or when the Last night card isn't shown |
+| F44 · lock, quest on the lock screen (trial) | `SleepQuest.chapterOn` (Night.kt) | — | `GateLocked(questChapter)`, `showLocked` | — |
+| F61 morning receipt (trial) | `UsageInsights.minutesIn` (Insights.kt) | — (reads `night_log`) | — | `receiptFor`; the "Night feeds" tile in `LastNightCard.kt` |
+| F64 night log | `NightLog`, `NightRules`, `NightFacts` (NightLog.kt); `SCREEN_ON`/`SHUTDOWN`/`STARTUP` in `UsageEventType` | `night_log`, `night_card_shown` (SleepData.kt) | — | `nightCardFor`, `LastNightCard.kt` (timeline + tiles); `UsageImportWorker` keeps it current |
 | F65 morning check-in | `MorningCheckIn`, `SleepLatency` (CheckIn.kt) | `sleep_checkin` (SleepData.kt) | — | `checkInFor`, `CheckInCard`; hides F61 and F64 until answered |
 | F72 match nights | `MatchNight`, `MatchNights`, `Settings.matchOn` (Match.kt); `GateRules.matchUntil`, `GatePolicy.MATCH_BOX` | — (setting `matchNights`) | `rulesFor` | `MatchNightsCard` (Settings); ticks F65's tag, a line on F64's card |
 | D-030 morning nudge | `MorningNudge` (MorningNudge.kt); `MorningWindow` (CheckIn.kt) | `morning_nudge` (MorningData.kt) | — | `MorningNudges.kt` (unlock receiver, notification, `NudgeDismissedReceiver`); fallback in `UsageImportWorker`; tap logged in `MainActivity` |

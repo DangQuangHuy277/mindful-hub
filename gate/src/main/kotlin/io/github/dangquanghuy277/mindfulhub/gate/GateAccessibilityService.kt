@@ -14,6 +14,7 @@ import android.widget.Toast
 import io.github.dangquanghuy277.mindfulhub.core.ActiveSession
 import io.github.dangquanghuy277.mindfulhub.core.AppProfile
 import io.github.dangquanghuy277.mindfulhub.core.Feature
+import io.github.dangquanghuy277.mindfulhub.core.SleepQuest
 import io.github.dangquanghuy277.mindfulhub.core.FeedBudget
 import io.github.dangquanghuy277.mindfulhub.core.GateDecision
 import io.github.dangquanghuy277.mindfulhub.core.GatePolicy
@@ -389,6 +390,7 @@ class GateAccessibilityService : AccessibilityService() {
                 decision = d,
                 bedtimeText = timeText(night.bed),
                 wakeText = timeText(night.wake),
+                questChapter = if (s.on(Feature.QUEST_ON_LOCK)) SleepQuest.chapterOn(s, night.night) else null,
                 budgetMinutes = s.feedBudgetMinutes,
                 instead = insteadHooks(pkg, eventId, now, s, night, abandon = false),
                 onPostcard = { savePostcard(night, it) },

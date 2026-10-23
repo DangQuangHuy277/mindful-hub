@@ -30,6 +30,12 @@ object SleepQuest {
         return SleepTimes(START.bedtime.minus(back), START.wake.minus(back))
     }
 
+    /** The chapter the night of [day] belongs to, or null when the quest is off or not started (M4, D-032). */
+    fun chapterOn(s: Settings, day: LocalDate): Int? {
+        val start = s.sleepQuestStart ?: return null
+        return if (s.on(Feature.SLEEP_QUEST)) chapter(start, s.sleepQuestHoldDays, day) else null
+    }
+
     /** Days left in this chapter, counting today. */
     fun daysLeft(start: LocalDate, holdDays: Int, today: LocalDate): Int {
         val days = (ChronoUnit.DAYS.between(start, today).toInt() - holdDays).coerceAtLeast(0)

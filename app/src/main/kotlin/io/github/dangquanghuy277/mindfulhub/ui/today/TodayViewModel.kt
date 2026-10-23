@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dangquanghuy277.mindfulhub.AppContainer
+import io.github.dangquanghuy277.mindfulhub.MorningDebug
 import io.github.dangquanghuy277.mindfulhub.MorningNudges
 import io.github.dangquanghuy277.mindfulhub.PlanReminders
 import io.github.dangquanghuy277.mindfulhub.core.AppSession
@@ -58,8 +59,11 @@ data class LoggedGood(val id: Long, val at: Instant, val category: Category, val
 /** F32: what kind of hello today deserves. */
 enum class Hello { NONE, WELCOME_BACK, FRESH_START }
 
-/** F61 (trial): last night against your own best recent night. */
-data class Receipt(val lastNight: Double, val best: Double, val nights: Int, val bedtime: String)
+/**
+ * F61 (trial): minutes in gated apps last night, from the planned bedtime until the phone came back
+ * up, against your own best of the [nights] before.
+ */
+data class Receipt(val lastNight: Double, val best: Double, val nights: Int)
 
 /** F64: last night's phone-down window, ready to show. Apps are labels, not package names. */
 data class NightCard(
@@ -67,6 +71,9 @@ data class NightCard(
     val down: Instant?,
     val up: Instant?,
     val plannedBed: Instant,
+    val plannedWake: Instant,
+    /** When each check started and ended, for the ticks on the timeline. */
+    val checks: List<Pair<Instant, Instant>>,
     val interruptions: Int,
     val interruptionMinutes: Double,
     val interruptionApps: List<String>,
@@ -77,8 +84,8 @@ data class NightCard(
     val match: MatchNight? = null,
 )
 
-/** F13 + F44 (trial). */
-data class QuestState(val started: Boolean, val chapter: Int, val times: SleepTimes, val daysLeft: Int)
+/** F13 + F44 (trial). [movedTonight]: a new chapter starts tonight, 15 min earlier than last night (D-032). */
+data class QuestState(val started: Boolean, val chapter: Int, val times: SleepTimes, val daysLeft: Int, val movedTonight: Boolean = false)
 
 data class TodayUiState(
     val today: LocalDate = LocalDate.MIN,
@@ -166,7 +173,7 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
                     banksToPin = banks,
                     feedUsed = feedUsed,
                     hello = if (s.on(Feature.COMEBACK)) helloFor(sessions, today) else Hello.NONE,
-                    receipt = if (s.on(Feature.MORNING_RECEIPT) && night.phase == NightPhase.DAY && checkInNight == null) receiptFor(sessions, s, today, now) else null,
+                    receipt = if (s.on(Feature.MORNING_RECEIPT) && night.phase == NightPhase.DAY && checkInNight == null) receiptFor(sessions, today, now) else null,
                     nightCard = if (checkInNight == null) nightCardFor(s, today, now) else null,
                 )
             }
@@ -186,16 +193,20 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
         }
     }
 
-    /** F61: only in the morning, and only once there are nights to compare. */
-    private fun receiptFor(sessions: List<AppSession>, s: Settings, today: LocalDate, now: Instant): Receipt? {
-        if (now.atZone(ZoneId.systemDefault()).hour >= 14) return null
-        val nights = (7 downTo 1).map { today.minusDays(it.toLong()) }
-        val bedtime = s.sleepTimes(today.minusDays(1)).bedtime
-        val use = UsageInsights.dayUse(sessions, c.clock, nights, bedtime) { it in gated }
-        val last = use.last().afterBedtime
-        val earlier = use.dropLast(1)
+    /**
+     * F61: only in the morning, and only once there are nights to compare. Each night runs from its
+     * planned bedtime to when the phone came up (the planned wake if it hasn't yet), from F64.
+     */
+    private suspend fun receiptFor(sessions: List<AppSession>, today: LocalDate, now: Instant): Receipt? {
+        if (!lastNightHours(now)) return null
+        withContext(Dispatchers.IO) { c.nightLog.update(now) }
+        val minutes = (7 downTo 1).mapNotNull { c.nightLog.get(today.minusDays(it.toLong())) }.map { row ->
+            row.night to UsageInsights.minutesIn(sessions, Instant.ofEpochMilli(row.plannedBed), Instant.ofEpochMilli(row.upAt ?: row.plannedWake)) { it in gated }
+        }
+        val last = minutes.lastOrNull()?.takeIf { it.first == today.minusDays(1).toString() } ?: return null
+        val earlier = minutes.dropLast(1).map { it.second }
         if (earlier.isEmpty()) return null
-        return Receipt(last, earlier.minOf { it.afterBedtime }, earlier.size, bedtime.toString())
+        return Receipt(last.second, earlier.min(), earlier.size)
     }
 
     /** F65: last night's check-in, while unanswered. Its first showing is logged as the ask. */
@@ -235,20 +246,32 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
         }
     }
 
+    /**
+     * F61 + F64: "last night" is shown from the 04:00 day boundary until 14:00. Before 04:00 the
+     * logical day hasn't turned, so "last night" would be the night before that one.
+     */
+    private fun lastNightHours(now: Instant): Boolean {
+        val hour = now.atZone(ZoneId.systemDefault()).hour
+        return (hour >= c.clock.boundaryHour && hour < 14) || MorningDebug.previewMorning
+    }
+
     /** F64: in the morning, once the phone has come back up (or there's nothing to wait for). */
     private suspend fun nightCardFor(s: Settings, today: LocalDate, now: Instant): NightCard? {
-        if (!s.on(Feature.NIGHT_LOG) || now.atZone(ZoneId.systemDefault()).hour >= 14) return null
+        if (!s.on(Feature.NIGHT_LOG) || !lastNightHours(now)) return null
         withContext(Dispatchers.IO) { c.nightLog.update(now) }
         val row = c.nightLog.get(today.minusDays(1)) ?: return null
         val status = NightStatus.valueOf(row.status)
         if (status == NightStatus.FOUND && row.upAt == null) return null
-        c.nightLog.markShown(row, now)
+        if (!MorningDebug.previewMorning) c.nightLog.markShown(row, now)
         fun ms(v: Long?) = v?.let(Instant::ofEpochMilli)
+        val facts = withContext(Dispatchers.IO) { c.nightLog.facts(today.minusDays(1), now) }
         return NightCard(
             status = status,
             down = ms(row.downAt),
             up = ms(row.upAt),
             plannedBed = Instant.ofEpochMilli(row.plannedBed),
+            plannedWake = Instant.ofEpochMilli(row.plannedWake),
+            checks = facts.interruptions.map { it.start to it.end },
             interruptions = row.interruptions,
             interruptionMinutes = row.interruptionSec / 60.0,
             interruptionApps = row.interruptionPkgs.split(",").filter { it.isNotBlank() }.distinct().map(::label),
@@ -266,7 +289,8 @@ class TodayViewModel(private val app: Application, private val c: AppContainer) 
         if (!s.on(Feature.SLEEP_QUEST)) return null
         val start = s.sleepQuestStart ?: return QuestState(false, 1, SleepQuest.times(1), SleepQuest.DAYS_PER_CHAPTER)
         val chapter = SleepQuest.chapter(start, s.sleepQuestHoldDays, today)
-        return QuestState(true, chapter, s.sleepTimes(today), SleepQuest.daysLeft(start, s.sleepQuestHoldDays, today))
+        val moved = chapter > 1 && SleepQuest.chapter(start, s.sleepQuestHoldDays, today.minusDays(1)) < chapter
+        return QuestState(true, chapter, s.sleepTimes(today), SleepQuest.daysLeft(start, s.sleepQuestHoldDays, today), moved)
     }
 
     /** F53: last night's postcard, shown in the morning hours of the next day. */

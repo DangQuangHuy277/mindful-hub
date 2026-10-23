@@ -119,17 +119,21 @@ class NightLogStore(
         val rows = settings.rows()
         var night = maxOf(clock.dayOf(since), today.minusDays(maxBackDays))
         while (night.isBefore(today)) {
-            if (night.toString() !in done) {
-                val times = SettingsStore.decode(rows, night).sleepTimes(night)
-                val (from, to) = NightLog.fetchRange(night, times, clock, rules)
-                val facts = NightLog.night(usage.events(from, minOf(to, now)), night, times, clock, now, rules)
-                dao.upsert(facts.toEntity(now))
-            }
+            if (night.toString() !in done) dao.upsert(compute(night, now, rows).toEntity(now))
             night = night.plusDays(1)
         }
     }
 
     suspend fun get(night: LocalDate): NightLogEntity? = dao.get(night.toString())
+
+    /** The full facts for one night, with each check's time (the table keeps only counts). */
+    suspend fun facts(night: LocalDate, now: Instant): NightFacts = compute(night, now, settings.rows())
+
+    private suspend fun compute(night: LocalDate, now: Instant, rows: List<SettingEntity>): NightFacts {
+        val times = SettingsStore.decode(rows, night).sleepTimes(night)
+        val (from, to) = NightLog.fetchRange(night, times, clock, rules)
+        return NightLog.night(usage.events(from, minOf(to, now)), night, times, clock, now, rules)
+    }
 
     suspend fun markShown(row: NightLogEntity, now: Instant) =
         dao.insertShown(NightCardShownEntity(ts = now.toEpochMilli(), night = row.night, settled = row.settled))

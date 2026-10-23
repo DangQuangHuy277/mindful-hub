@@ -33,6 +33,7 @@ enum class Feature(
     MORNING_NUDGE("D-030", "Morning nudge", "One quiet notification after your first unlock of the morning, opening the check-in. Never in work hours; it clears itself when work starts.", FeatureStatus.APPROVED),
     MATCH_NIGHT("F72", "Match nights", "Plan a late match a day ahead: YouTube, the feeds and X open through the normal pause during it, games stay locked, and the morning knows the night was planned.", FeatureStatus.APPROVED),
     SLEEP_QUEST("F13 + F44", "Sleep-shift quest", "Moves your wake time 15 min earlier every 3 days, told as chapters.", FeatureStatus.TRIAL),
+    QUEST_ON_LOCK("F44 · lock", "Sleep shift on the lock screen", "The wind-down lock says which chapter of the sleep shift its times come from.", FeatureStatus.TRIAL),
     MORNING_RECEIPT("F61", "Morning receipt", "A calm card each morning: last night against your own best night.", FeatureStatus.TRIAL),
     REACTION_CHECK("F75", "Morning reaction check", "3 minutes after the check-in: tap when the star appears. The same rules every morning, so you can see what you can't feel.", FeatureStatus.TRIAL),
     CALM_LINKS("F17", "Calm links", "One card of finite, calm sources (HN, VnExpress, Barça news, Substack). Group time (F18) waits for your group links.", FeatureStatus.TRIAL),

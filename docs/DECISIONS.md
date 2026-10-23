@@ -613,3 +613,44 @@ from D-026.
 - **Testing aid:** `MorningDebug.kt` (debug builds only, sender needs DUMP) posts a test nudge and
   opens a practice run that saves nothing, so the phone can be checked at any hour (A6).
 
+## D-031: One "Last night" card with a timeline (F64 + F61)
+2026-10-24. **Decided (your call: option A).** You didn't remember F61: it came from the screen-time
+research (RESEARCH-TIME.md, 2026-10-19, an idea of ours scored 71%) and went in as a trial with D-021,
+never reviewed. It and F64 both said "Last night" but measured different things.
+- **One card:** a timeline of the planned night against the phone-down stretch, a tick per check,
+  then four tiles: down and up (against the plan), checks, and F61's "Night feeds · trial". With F61
+  off, the fourth tile is the first app of the morning. Each switch still controls its own part.
+- **F61's window fixed:** it counted gated minutes from bedtime only until 04:00, the day boundary;
+  now it runs from the planned bedtime until the phone came back up (F64), for last night and the
+  6 nights it's compared with.
+- **Fix:** the card no longer shows between 00:00 and 04:00, when "last night" was the night before
+  that one. It shows from 04:00 to 14:00, like the check-in.
+- **Test noise:** `night_card_shown` ids 2–6 (2026-10-24 00:02–00:12) were Claude's test launches,
+  not you. `DEBUG_PREVIEW_MORNING` (debug builds, see `MorningDebug.kt`) now previews the card without
+  logging a showing.
+
+- **Incident, fixed:** on 2026-10-23 at 23:59, Claude's automated test taps for the F75 practice run
+  kept firing after the run ended and pressed the quest's "stay on this chapter" twice
+  (`sleepQuestHoldDays` = 6). Reset to 0 for the same day (2026-10-24 00:19, before the 04:00 day
+  boundary), so the plan is as before: chapter 2, bed 01:45, wake 09:30. The setting's `setAt`
+  shows the reset time; the value for 2026-10-23 is 0, as if nothing happened.
+
+## D-032: The sleep shift shows itself: in the Last night card, and on the lock (trial)
+2026-10-24. **Decided (your call: M1 and M4, M4 as a trial; card design D1, expanding in place).**
+You hadn't noticed the quest, though it moves the times of the wind-down lock you met 1–8 times a
+night. Options and scores: chat of 2026-10-24 (M1 85%, M4 83%, evening card 73%, notification 68%;
+designs D1 88%, D3 83%, D4 68%, D2 65%).
+- **M1:** once started, the quest lives in the morning's Last night card: a chip "Chapter 2/7 ·
+  tonight 01:45" (marked "new" when a step moves tonight), and in the expanded card tonight's bed and
+  wake, days left, the light tip, and "Last step didn't stick? Stay on this chapter", next to last
+  night's facts. The separate quest card only shows to start the quest, or when the Last night card
+  is off.
+- **D1 design:** collapsed, the card is two thin bars (plan, phone down), one line ("02:25 → 09:54 ·
+  40 m after plan · no checks") and chips. A tap opens it in place: hours, legend, the four tiles and
+  the quest strip. Less text than the first merged card, which you found odd.
+- **M4 (trial, its own switch "Sleep shift on the lock screen"):** the wind-down lock adds one line,
+  "Sleep shift, chapter 2 of 7: these times move 15 min earlier every 3 days." Exposure is the
+  existing `gate_event` LOCK row plus the versioned switch. Not yet seen on the phone: it needs a
+  real wind-down lock.
+- **Later, if still missed:** a quiet notification before wind-down (M3), not built.
+

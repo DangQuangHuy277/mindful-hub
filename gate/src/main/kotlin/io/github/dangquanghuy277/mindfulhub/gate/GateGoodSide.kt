@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.dangquanghuy277.mindfulhub.core.SleepQuest
 import io.github.dangquanghuy277.mindfulhub.core.DayPart
 import io.github.dangquanghuy277.mindfulhub.core.GateDecision
 import io.github.dangquanghuy277.mindfulhub.core.InsteadContext
@@ -116,6 +117,8 @@ fun GateLocked(
     decision: GateDecision.Locked,
     bedtimeText: String,
     wakeText: String,
+    /** F44 · lock (trial, D-032): the sleep-shift chapter these times come from; null hides the line. */
+    questChapter: Int?,
     budgetMinutes: Int,
     /** F26 + F59 is on: things to start instead. */
     instead: InsteadHooks?,
@@ -128,6 +131,16 @@ fun GateLocked(
             LockReason.WIND_DOWN -> {
                 Text("Wind-down time 🌙", style = MaterialTheme.typography.headlineSmall)
                 Text("Bed at $bedtimeText, alarm at $wakeText. $appLabel rests until then. Messages still work.", textAlign = TextAlign.Center)
+                questChapter?.let { c ->
+                    Text(
+                        if (c < SleepQuest.CHAPTERS) {
+                            "🌱 Sleep shift, chapter $c of ${SleepQuest.CHAPTERS}: these times move 15 min earlier every 3 days."
+                        } else {
+                            "🌅 Sleep shift: you're at the target. Same times every day."
+                        },
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                    )
+                }
             }
             LockReason.BUDGET -> {
                 Text("Today's feeds are done 🌿", style = MaterialTheme.typography.headlineSmall)

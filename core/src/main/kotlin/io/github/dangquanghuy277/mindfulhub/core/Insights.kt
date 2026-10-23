@@ -154,6 +154,14 @@ object UsageInsights {
         return if (averages[i] >= MIN_PEAK_MINUTES) Insight.PeakHour(map.hours[i], averages[i]) else null
     }
 
+    /**
+     * F61: minutes in [include]d apps between [from] and [to]. For the night it runs from the
+     * planned bedtime to when the phone came back up, so a 04:30 scroll still counts (the old
+     * receipt stopped at the 04:00 day boundary).
+     */
+    fun minutesIn(sessions: List<AppSession>, from: Instant, to: Instant, include: (String) -> Boolean = { true }): Double =
+        sessions.filter { include(it.pkg) }.sumOf { overlapMinutes(it, from, to) }
+
     private fun overlapMinutes(s: AppSession, from: Instant, to: Instant): Double {
         val start = maxOf(s.start, from)
         val end = minOf(s.end, to)

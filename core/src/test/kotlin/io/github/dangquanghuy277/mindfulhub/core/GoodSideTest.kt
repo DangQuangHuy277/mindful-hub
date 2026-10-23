@@ -228,4 +228,13 @@ class GoodSideTest {
         assertEquals(at(mon.plusDays(3), 0, 30), WeekPlan.instantOf(item, clock))
         assertEquals(Duration.ZERO, Duration.between(WeekPlan.instantOf(item, clock), at(mon.plusDays(3), 0, 30)))
     }
+
+    @Test
+    fun `the lock names the chapter only while the quest runs`() {
+        val mon = LocalDate.of(2026, 10, 19)
+        val running = Settings(sleepQuestStart = mon)
+        assertEquals(2, SleepQuest.chapterOn(running, mon.plusDays(3)))
+        assertEquals(null, SleepQuest.chapterOn(Settings(), mon))
+        assertEquals(null, SleepQuest.chapterOn(running.copy(enabled = running.enabled - Feature.SLEEP_QUEST), mon))
+    }
 }
